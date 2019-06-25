@@ -1,4 +1,4 @@
-package com.sergiovitorino.hexagonalarchitectureexample.domain.service;
+package com.sergiovitorino.hexagonalarchitectureexample.application.service;
 
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.repository.UserRepository;

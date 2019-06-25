@@ -52,6 +52,16 @@
             <version>2.28.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.leangen.graphql</groupId>
+            <artifactId>spqr</artifactId>
+            <version>0.9.9</version>
+        </dependency>
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+            <version>11.0</version>
+        </dependency>
     </dependencies>
 
     <build>

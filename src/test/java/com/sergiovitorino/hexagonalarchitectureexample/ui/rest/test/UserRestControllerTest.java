@@ -1,4 +1,4 @@
-package com.sergiovitorino.hexagonalarchitectureexample.framework.rest.test;
+package com.sergiovitorino.hexagonalarchitectureexample.ui.rest.test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;

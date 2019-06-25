@@ -1,8 +1,8 @@
-package com.sergiovitorino.hexagonalarchitectureexample.application;
+package com.sergiovitorino.hexagonalarchitectureexample.application.command;
 
-import com.sergiovitorino.hexagonalarchitectureexample.application.user.ListCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
-import com.sergiovitorino.hexagonalarchitectureexample.domain.service.UserService;
+import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;

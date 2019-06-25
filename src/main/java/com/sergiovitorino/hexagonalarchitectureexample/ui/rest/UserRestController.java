@@ -1,7 +1,7 @@
-package com.sergiovitorino.hexagonalarchitectureexample.framework.rest;
+package com.sergiovitorino.hexagonalarchitectureexample.ui.rest;
 
-import com.sergiovitorino.hexagonalarchitectureexample.application.UserCommandHandler;
-import com.sergiovitorino.hexagonalarchitectureexample.application.user.ListCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
