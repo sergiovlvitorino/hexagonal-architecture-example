@@ -21,14 +21,13 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @Controller
-@RequestMapping("/graphql/person")
+@RequestMapping("/graphql/user")
 public class UserGraphQLController {
 
     public static final String QUERY = "query";
     public static final String OPERATION_NAME = "operationName";
     private final GraphQL graphQL;
-    @Autowired
-    private ObjectMapper mapper;
+    @Autowired private ObjectMapper mapper;
 
     public UserGraphQLController(final UserMapper mapper) {
         final GraphQLSchema schema = new GraphQLSchemaGenerator()
