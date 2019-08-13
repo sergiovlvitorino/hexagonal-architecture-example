@@ -21,4 +21,8 @@ public class UserService {
         final Example<User> example = Example.of(user, matcher);
         return repository.findAll(example, pageable);
     }
+
+    public User save(User user) {
+        return repository.save(user);
+    }
 }
