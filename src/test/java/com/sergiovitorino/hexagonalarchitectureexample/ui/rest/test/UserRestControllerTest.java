@@ -69,7 +69,7 @@ public class UserRestControllerTest {
 
         final HttpEntity<String> entity = new HttpEntity<String>(mapper.writeValueAsString(command), headers);
         final ResponseEntity<String> responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ public class UserRestController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public User post(@RequestBody @Valid SaveCommand command){ return commandHandler.handle(command); }
 
 }
