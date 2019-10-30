@@ -28,7 +28,7 @@ public class UserGraphQLControllerTest {
     public void testIfListCommandIsOk() throws Exception{
         String body = "{\"query\":\"query{\\n  findAll(pageNumber:0, pageSize:10000, orderBy: \\\"name\\\", asc: true){\\n    content{\\n      id,\\n      name\\n    },\\n    totalElements\\n  }\\n}\",\"variables\":null}";
         HttpHeaders headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_UTF8_VALUE);
+        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
         final HttpEntity<String> entity = new HttpEntity<>(body, headers);
         final ResponseEntity<String> responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/graphql/user", HttpMethod.POST, entity, String.class);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());

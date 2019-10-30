@@ -41,7 +41,7 @@ public class UserGraphQLController {
     }
 
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_UTF8_VALUE, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public Map<String, Object> graphQL(@RequestBody Map<String, String> request, HttpServletRequest raw) {
         final ExecutionResult executionResult = graphQL.execute(ExecutionInput.newExecutionInput()
