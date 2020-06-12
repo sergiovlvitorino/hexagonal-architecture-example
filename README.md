@@ -1,7 +1,7 @@
 # hexagonal-architecture-example
 This example shows how to implement the hexagonal architecture design pattern with REST and GraphQL.
 
-[![Build Status](https://travis-ci.org/sergiovlvitorino/hexagonal-architecture-example.svg?branch=master)](https://travis-ci.org/sergiovlvitorino/hexagonal-architecture-example)
+![Java CI with Maven](https://github.com/sergiovlvitorino/hexagonal-architecture-example/workflows/Java%20CI%20with%20Maven/badge.svg)
 
 [![codecov](https://codecov.io/gh/sergiovlvitorino/hexagonal-architecture-example/branch/master/graph/badge.svg)](https://codecov.io/gh/sergiovlvitorino/hexagonal-architecture-example)
 
