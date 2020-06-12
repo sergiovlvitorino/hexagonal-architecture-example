@@ -15,7 +15,8 @@ public class UserMapper {
     @Autowired private UserCommandHandler commandHandler;
 
     @GraphQLQuery(name = "findAll")
-    public Page<User> findAll(@GraphQLNonNull Integer pageNumber, @GraphQLNonNull Integer pageSize, @GraphQLNonNull String orderBy, @GraphQLNonNull Boolean asc, User user){
+    public Page<User> findAll(@GraphQLNonNull final Integer pageNumber, @GraphQLNonNull final Integer pageSize,
+            @GraphQLNonNull final String orderBy, @GraphQLNonNull final Boolean asc, final User user) {
         return commandHandler.handle(new ListCommand(pageNumber, pageSize, orderBy, asc, user));
     }
 

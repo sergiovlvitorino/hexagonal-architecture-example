@@ -13,11 +13,12 @@ public class UserCommandHandler {
 
     @Autowired private UserService service;
 
-    public Page<User> handle(ListCommand command) {
-        return service.findAll(command.getPageNumber(), command.getPageSize(), command.getOrderBy(), command.getAsc(), command.getUser() == null ? new User() : command.getUser());
+    public Page<User> handle(final ListCommand command) {
+        return service.findAll(command.getPageNumber(), command.getPageSize(), command.getOrderBy(), command.getAsc(),
+                command.getUser() == null ? new User() : command.getUser());
     }
 
-    public User handle(SaveCommand command) {
+    public User handle(final SaveCommand command) {
         return service.save(new User(command.getName()));
     }
 }
