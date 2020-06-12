@@ -14,7 +14,6 @@ import org.springframework.http.*;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -65,7 +64,7 @@ public class UserRestControllerTest {
         command.setName("My First Name");
 
         final HttpHeaders headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_UTF8_VALUE);
+        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final HttpEntity<String> entity = new HttpEntity<String>(mapper.writeValueAsString(command), headers);
         final ResponseEntity<String> responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
@@ -78,7 +77,7 @@ public class UserRestControllerTest {
         command.setName("<html>test</html>");
 
         final HttpHeaders headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_UTF8_VALUE);
+        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final HttpEntity<String> httpEntity = new HttpEntity<String>(mapper.writeValueAsString(command), headers);
         final ResponseEntity<String> responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
