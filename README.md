@@ -8,8 +8,8 @@ This example shows how to implement the hexagonal architecture design pattern wi
 ## Getting Started
 
 ### Prerequisites
-* JDK 16
-* Maven 3
+* JDK 18
+* Maven 3.6+
 
 ### Running
 Open the terminal. Put the commands below to download and start the project:
