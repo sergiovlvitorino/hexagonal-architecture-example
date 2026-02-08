@@ -8,11 +8,30 @@ This example shows how to implement the hexagonal architecture design pattern wi
 ## Tech Stack
 
 * Java 21 (LTS)
-* Spring Boot 3.5.x
+* Spring Boot 3.5.9
 * Spring for GraphQL (schema-first)
 * Spring Data JPA + H2 (in-memory)
-* Lombok
-* JaCoCo (code coverage)
+* Lombok 1.18.42
+* Jsoup 1.22.1 (XSS prevention)
+* JaCoCo 0.8.14 (code coverage)
+
+## Architecture
+
+```
+src/main/java/
+  domain/
+    model/          User entity
+    repository/     UserRepository (JPA)
+  application/
+    command/        UserCommandHandler, ListCommand, SaveCommand (Records)
+    service/        UserService
+  ui/
+    rest/           UserRestController (GET/POST)
+    graphql/        UserGraphQLController (@QueryMapping)
+  infrastructure/
+    validations/    @SafeHtml custom annotation + SafeHtmlValidator
+    GlobalExceptionHandler, WebConfig, Initialize
+```
 
 ## Getting Started
 
@@ -21,32 +40,56 @@ This example shows how to implement the hexagonal architecture design pattern wi
 * Maven 3.8+
 
 ### Running
-Open the terminal. Put the commands below to download and start the project:
-
-`git clone https://github.com/sergiovlvitorino/hexagonal-architecture-example`
-
-`cd hexagonal-architecture-example`
-
-`mvn spring-boot:run`
+```bash
+git clone https://github.com/sergiovlvitorino/hexagonal-architecture-example
+cd hexagonal-architecture-example
+mvn spring-boot:run
+```
 
 ### Running tests
-Open the terminal. Put the commands below to test:
+```bash
+mvn test
+```
 
-`cd hexagonal-architecture-example`
+### Test coverage report
+```bash
+mvn test jacoco:report
+```
+The report is generated at `target/site/jacoco/index.html`.
 
-`mvn test`
+## API Endpoints
 
-### API Endpoints
+### REST
 
-#### REST
-
-* `GET /rest/user?pageNumber=0&pageSize=10&orderBy=name&asc=true` - List users (paginated)
+* `GET /rest/user?pageNumber=0&pageSize=10&orderBy=name&asc=true` - List users (paginated, sorted)
+* `GET /rest/user?pageNumber=0&pageSize=10&orderBy=name&asc=true&user.name=filter` - List users with name filter
 * `POST /rest/user` - Create user (body: `{"name": "User Name"}`)
 
-#### GraphQL
+### GraphQL
 
 * `POST /graphql` - GraphQL endpoint
 * `GET /graphiql` - GraphiQL interactive interface
+
+#### Example query
+```graphql
+{
+  findAll(pageNumber: 0, pageSize: 10, orderBy: "name", asc: true) {
+    content { id name }
+    totalElements
+    totalPages
+  }
+}
+```
+
+## Security
+
+* **XSS prevention**: Custom `@SafeHtml` validator using Jsoup with `Safelist.none()`
+* **Input validation**: Bean Validation on REST endpoints, manual validation on GraphQL (pageSize limit, orderBy whitelist)
+* **Global exception handler**: `@RestControllerAdvice` returns structured error responses
+* **CORS**: Restricted origins, methods, and headers via `WebConfig`
+* **H2 console**: Disabled (`spring.h2.console.enabled=false`)
+* **GraphQL introspection**: Disabled in production (`spring.graphql.schema.introspection.enabled=false`)
+* **Seed data**: `Initialize` component only active in non-prod profiles (`@Profile("!prod")`)
 
 ## Authors
 
