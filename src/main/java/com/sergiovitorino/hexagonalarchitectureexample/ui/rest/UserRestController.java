@@ -4,7 +4,6 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserC
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -17,7 +16,11 @@ import jakarta.validation.Valid;
 @Validated
 public class UserRestController {
 
-    @Autowired private UserCommandHandler commandHandler;
+    private final UserCommandHandler commandHandler;
+
+    public UserRestController(UserCommandHandler commandHandler) {
+        this.commandHandler = commandHandler;
+    }
 
     @GetMapping
     public Page<User> get(@Valid ListCommand command){
@@ -26,6 +29,8 @@ public class UserRestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public User post(@RequestBody @Valid SaveCommand command){ return commandHandler.handle(command); }
+    public User post(@RequestBody @Valid SaveCommand command){
+        return commandHandler.handle(command);
+    }
 
 }
