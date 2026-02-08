@@ -1,55 +1,28 @@
 package com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.mapper.UserMapper;
-import graphql.ExecutionInput;
-import graphql.ExecutionResult;
-import graphql.GraphQL;
-import graphql.schema.GraphQLSchema;
-import io.leangen.graphql.GraphQLSchemaGenerator;
-import io.leangen.graphql.metadata.strategy.query.AnnotatedResolverBuilder;
-import io.leangen.graphql.metadata.strategy.value.jackson.JacksonValueMapperFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.graphql.data.method.annotation.Argument;
+import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-
-import javax.servlet.http.HttpServletRequest;
-import java.util.Map;
 
 @Controller
-@RequestMapping("/graphql/user")
 public class UserGraphQLController {
 
-    public static final String QUERY = "query";
-    public static final String OPERATION_NAME = "operationName";
-    private final GraphQL graphQL;
-    @Autowired private ObjectMapper mapper;
+    private final UserCommandHandler commandHandler;
 
-    public UserGraphQLController(final UserMapper mapper) {
-        final GraphQLSchema schema = new GraphQLSchemaGenerator()
-                .withResolverBuilders(
-                        //Resolve by annotations
-                        new AnnotatedResolverBuilder())
-                .withOperationsFromSingleton(mapper)
-                .withValueMapperFactory(new JacksonValueMapperFactory())
-                .generate();
-        graphQL = GraphQL.newGraphQL(schema).build();
+    public UserGraphQLController(final UserCommandHandler commandHandler) {
+        this.commandHandler = commandHandler;
     }
 
-
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseBody
-    public Map<String, Object> graphQL(@RequestBody final Map<String, String> request, final HttpServletRequest raw) {
-        final ExecutionResult executionResult = graphQL.execute(ExecutionInput.newExecutionInput()
-                .query(request.get(QUERY))
-                .operationName(request.get(OPERATION_NAME))
-                .context(raw)
-                .build());
-        return executionResult.toSpecification();
+    @QueryMapping
+    public Page<User> findAll(@Argument final Integer pageNumber, @Argument final Integer pageSize,
+                              @Argument final String orderBy, @Argument final Boolean asc,
+                              @Argument final String userName) {
+        var user = userName != null ? new User(userName) : null;
+        return commandHandler.handle(new ListCommand(pageNumber, pageSize, orderBy, asc, user));
     }
 
 }

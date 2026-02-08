@@ -1,28 +1,16 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.command.user;
 
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class ListCommand {
-
-    @Min(0)
-    private Integer pageNumber;
-    @Min(1)
-    private Integer pageSize;
-    @NotBlank
-    private String orderBy;
-    @NotNull
-    private Boolean asc;
-
-    private User user;
-
+public record ListCommand(
+        @Min(0) Integer pageNumber,
+        @Min(1) Integer pageSize,
+        @NotBlank String orderBy,
+        @NotNull Boolean asc,
+        User user
+) {
 }

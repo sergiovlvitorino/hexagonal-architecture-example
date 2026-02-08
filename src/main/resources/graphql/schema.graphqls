@@ -1,0 +1,16 @@
+type Query {
+    findAll(pageNumber: Int!, pageSize: Int!, orderBy: String!, asc: Boolean!, userName: String): UserPage!
+}
+
+type UserPage {
+    content: [User!]!
+    totalElements: Int!
+    totalPages: Int!
+    number: Int!
+    size: Int!
+}
+
+type User {
+    id: ID!
+    name: String!
+}

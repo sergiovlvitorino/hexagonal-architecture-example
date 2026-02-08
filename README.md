@@ -5,11 +5,20 @@ This example shows how to implement the hexagonal architecture design pattern wi
 
 [![codecov](https://codecov.io/gh/sergiovlvitorino/hexagonal-architecture-example/branch/master/graph/badge.svg)](https://codecov.io/gh/sergiovlvitorino/hexagonal-architecture-example)
 
+## Tech Stack
+
+* Java 21 (LTS)
+* Spring Boot 3.5.x
+* Spring for GraphQL (schema-first)
+* Spring Data JPA + H2 (in-memory)
+* Lombok
+* JaCoCo (code coverage)
+
 ## Getting Started
 
 ### Prerequisites
-* JDK 18
-* Maven 3.6+
+* JDK 21
+* Maven 3.8+
 
 ### Running
 Open the terminal. Put the commands below to download and start the project:
@@ -20,13 +29,24 @@ Open the terminal. Put the commands below to download and start the project:
 
 `mvn spring-boot:run`
 
-
 ### Running tests
 Open the terminal. Put the commands below to test:
 
 `cd hexagonal-architecture-example`
 
 `mvn test`
+
+### API Endpoints
+
+#### REST
+
+* `GET /rest/user?pageNumber=0&pageSize=10&orderBy=name&asc=true` - List users (paginated)
+* `POST /rest/user` - Create user (body: `{"name": "User Name"}`)
+
+#### GraphQL
+
+* `POST /graphql` - GraphQL endpoint
+* `GET /graphiql` - GraphiQL interactive interface
 
 ## Authors
 
@@ -37,4 +57,3 @@ See also the list of [contributors](https://github.com/sergiovlvitorino/hexagona
 ## License
 
 This project is licensed under the GPL-3.0 License - see the [LICENSE.md](LICENSE.md) file for details
-
