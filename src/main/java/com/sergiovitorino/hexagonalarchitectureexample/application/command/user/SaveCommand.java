@@ -1,22 +1,11 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.command.user;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Size;
-
 import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validations.SafeHtml;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class SaveCommand {
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 
-    @NotEmpty
-    @Size(min = 5, max = 100)
-    @SafeHtml
-    private String name;
-
+public record SaveCommand(
+        @NotEmpty @Size(min = 5, max = 100) @SafeHtml String name
+) {
 }

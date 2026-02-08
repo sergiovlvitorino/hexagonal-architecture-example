@@ -2,8 +2,8 @@ package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validatio
 
 import org.jsoup.Jsoup;
 
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 
 public class SafeHtmlValidator implements ConstraintValidator<SafeHtml, String> {
 
