@@ -1,16 +1,34 @@
 type Query {
+    """
+    Returns a paginated and sorted list of users, with optional name filter.
+
+    - pageNumber: zero-based page index (minimum: 0)
+    - pageSize:   number of items per page (range: 1–1000)
+    - orderBy:    field to sort by — allowed values: "id", "name"
+    - asc:        sort direction — true for ascending, false for descending
+    - userName:   optional exact-match filter on the user name
+    """
     findAll(pageNumber: Int!, pageSize: Int!, orderBy: String!, asc: Boolean!, userName: String): UserPage!
 }
 
+"A paginated result set of users."
 type UserPage {
+    "List of users on the current page."
     content: [User!]!
+    "Total number of users across all pages."
     totalElements: Int!
+    "Total number of pages."
     totalPages: Int!
+    "Zero-based index of the current page."
     number: Int!
+    "Number of items requested per page."
     size: Int!
 }
 
+"Represents a user in the system."
 type User {
+    "Unique identifier (UUID)."
     id: ID!
+    "Display name of the user."
     name: String!
 }

@@ -7,10 +7,13 @@ import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 @Component
 @Profile("!prod")
 public class Initialize {
+
+    private static final int SEED_USER_COUNT = 6;
 
     private final UserRepository repository;
 
@@ -19,13 +22,10 @@ public class Initialize {
     }
 
     @PostConstruct
-    public void execute(){
-        repository.save(new User(null, UUID.randomUUID().toString()));
-        repository.save(new User(null, UUID.randomUUID().toString()));
-        repository.save(new User(null, UUID.randomUUID().toString()));
-        repository.save(new User(null, UUID.randomUUID().toString()));
-        repository.save(new User(null, UUID.randomUUID().toString()));
-        repository.save(new User(null, UUID.randomUUID().toString()));
+    public void execute() {
+        IntStream.range(0, SEED_USER_COUNT)
+                .mapToObj(i -> new User(null, UUID.randomUUID().toString()))
+                .forEach(repository::save);
     }
 
 }

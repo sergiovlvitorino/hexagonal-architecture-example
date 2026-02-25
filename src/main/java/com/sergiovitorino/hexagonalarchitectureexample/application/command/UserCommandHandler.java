@@ -7,6 +7,8 @@ import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 @Component
 public class UserCommandHandler {
 
@@ -17,8 +19,8 @@ public class UserCommandHandler {
     }
 
     public Page<User> handle(final ListCommand command) {
-        return service.findAll(command.pageNumber(), command.pageSize(), command.orderBy(), command.asc(),
-                command.user() == null ? new User() : command.user());
+        var filter = Optional.ofNullable(command.user()).orElseGet(User::new);
+        return service.findAll(command.pageNumber(), command.pageSize(), command.orderBy(), command.asc(), filter);
     }
 
     public User handle(final SaveCommand command) {

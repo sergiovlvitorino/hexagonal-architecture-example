@@ -16,10 +16,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up JDK 21
       uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: 21
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
+
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-maven
+
+    - name: Build and test with Maven
+      run: mvn -B verify jacoco:report --file pom.xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        files: target/site/jacoco/jacoco.xml
+        fail_ci_if_error: false
