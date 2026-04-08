@@ -21,13 +21,13 @@ import static org.junit.jupiter.api.Assertions.*;
 public class UserRestControllerTest {
 
     @Autowired private ObjectMapper mapper;
-    @Autowired private TestRestTemplate restTemplete;
+    @Autowired private TestRestTemplate restTemplate;
     @LocalServerPort private Integer port;
 
     @Test
     public void testIfListCommandReturnsOk() throws Exception {
         final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
         final var jsonObject = new JSONObject(responseEntity.getBody());
         final List<User> users = mapper.readValue(jsonObject.getString("content"), mapper.getTypeFactory().constructParametricType(List.class, User.class));
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
@@ -36,9 +36,9 @@ public class UserRestControllerTest {
     }
 
     @Test
-    public void testIfListCommandReturnsOk2() throws Exception {
+    public void testIfListCommandWithDescendingSortReturnsOk() throws Exception {
         final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=false", HttpMethod.GET, entity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=false", HttpMethod.GET, entity, String.class);
         final var jsonObject = new JSONObject(responseEntity.getBody());
         final List<User> users = mapper.readValue(jsonObject.getString("content"), mapper.getTypeFactory().constructParametricType(List.class, User.class));
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
@@ -47,9 +47,9 @@ public class UserRestControllerTest {
     }
 
     @Test
-    public void testIfListCommandReturnsOk3() throws Exception {
+    public void testIfListCommandWithNonExistentFilterReturnsEmptyList() throws Exception {
         final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=true&user.name=111", HttpMethod.GET, entity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=true&user.name=111", HttpMethod.GET, entity, String.class);
         final var jsonObject = new JSONObject(responseEntity.getBody());
         final List<User> users = mapper.readValue(jsonObject.getString("content"), mapper.getTypeFactory().constructParametricType(List.class, User.class));
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
@@ -65,7 +65,7 @@ public class UserRestControllerTest {
         headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final var entity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
         assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
     }
 
@@ -77,7 +77,7 @@ public class UserRestControllerTest {
         headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
         assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
 
         final var jsonObject = new JSONObject(responseEntity.getBody());
@@ -92,7 +92,7 @@ public class UserRestControllerTest {
         headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
         assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
 
         final var jsonObject = new JSONObject(responseEntity.getBody());
@@ -107,7 +107,7 @@ public class UserRestControllerTest {
         headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
         assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
     }
 
@@ -117,7 +117,7 @@ public class UserRestControllerTest {
         headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final var httpEntity = new HttpEntity<>("{\"name\": null}", headers);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
         assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
     }
 
@@ -129,18 +129,75 @@ public class UserRestControllerTest {
         headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
         assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
     }
 
     @Test
     public void testIfPaginationWithPageNumberOneIsOk() throws Exception {
         final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplete.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=2&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=2&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
         final var jsonObject = new JSONObject(responseEntity.getBody());
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
         assertEquals(2, jsonObject.getInt("size"));
         assertTrue(jsonObject.getInt("totalPages") > 1);
+    }
+
+    @Test
+    public void testIfListCommandWithInvalidOrderByReturnsBadRequest() throws Exception {
+        final var entity = new HttpEntity<String>(null, null);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=10&orderBy=email&asc=true", HttpMethod.GET, entity, String.class);
+        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+
+        final var jsonObject = new JSONObject(responseEntity.getBody());
+        assertTrue(jsonObject.has("error"));
+        assertTrue(jsonObject.getString("error").contains("orderBy must be one of"));
+    }
+
+    @Test
+    public void testIfListCommandWithOrderByIdReturnsOk() throws Exception {
+        final var entity = new HttpEntity<String>(null, null);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=id&asc=true", HttpMethod.GET, entity, String.class);
+        final var jsonObject = new JSONObject(responseEntity.getBody());
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertNotNull(jsonObject.getJSONArray("content"));
+    }
+
+    @Test
+    public void testIfSaveCommandWithExactMinLengthNameReturnsCreated() throws Exception {
+        final var command = new SaveCommand("Abcde");
+
+        final var headers = new HttpHeaders();
+        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+
+        final var entity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
+        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
+    }
+
+    @Test
+    public void testIfSaveCommandWithExactMaxLengthNameReturnsCreated() throws Exception {
+        final var command = new SaveCommand("A".repeat(100));
+
+        final var headers = new HttpHeaders();
+        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+
+        final var entity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
+        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
+    }
+
+    @Test
+    public void testPaginationMetadataIsCorrect() throws Exception {
+        final var entity = new HttpEntity<String>(null, null);
+        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=2&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
+        final var jsonObject = new JSONObject(responseEntity.getBody());
+
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals(0, jsonObject.getInt("number"));
+        assertEquals(2, jsonObject.getInt("size"));
+        assertTrue(jsonObject.getInt("totalPages") >= 3);
+        assertTrue(jsonObject.getInt("totalElements") >= 6);
     }
 
 }

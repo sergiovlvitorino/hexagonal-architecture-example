@@ -84,9 +84,9 @@ The report is generated at `target/site/jacoco/index.html`.
 ## Security
 
 * **XSS prevention**: Custom `@SafeHtml` validator using Jsoup with `Safelist.none()`
-* **Input validation**: Bean Validation on REST endpoints, manual validation on GraphQL (pageSize limit, orderBy whitelist)
-* **Global exception handler**: `@RestControllerAdvice` returns structured error responses
-* **CORS**: Restricted origins, methods, and headers via `WebConfig`
+* **Input validation**: Bean Validation on commands (`@Min`, `@Max`, `@NotBlank`, `@Size`), centralized `orderBy` whitelist in `UserCommandHandler`
+* **Global exception handler**: `@RestControllerAdvice` with handlers for validation errors, illegal arguments, malformed requests, type mismatches, and generic exceptions
+* **CORS**: Configurable origins via `cors.allowed-origins` property, restricted methods and headers
 * **H2 console**: Disabled (`spring.h2.console.enabled=false`)
 * **GraphQL introspection**: Disabled in production (`spring.graphql.schema.introspection.enabled=false`)
 * **Seed data**: `Initialize` component only active in non-prod profiles (`@Profile("!prod")`)

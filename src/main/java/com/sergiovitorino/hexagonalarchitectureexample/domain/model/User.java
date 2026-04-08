@@ -1,8 +1,10 @@
 package com.sergiovitorino.hexagonalarchitectureexample.domain.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 import jakarta.persistence.Column;
@@ -15,10 +17,12 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(of = "id")
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString
 public class User {
 
     @Id
