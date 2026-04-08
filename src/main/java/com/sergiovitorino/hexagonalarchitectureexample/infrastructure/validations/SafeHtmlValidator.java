@@ -1,6 +1,7 @@
 package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validations;
 
 import org.jsoup.Jsoup;
+import org.jsoup.parser.Parser;
 import org.jsoup.safety.Safelist;
 
 import jakarta.validation.ConstraintValidator;
@@ -15,8 +16,8 @@ public class SafeHtmlValidator implements ConstraintValidator<SafeHtml, String> 
     @Override
     public boolean isValid(String html, ConstraintValidatorContext constraintValidatorContext) {
         if (html == null) return true;
-        return Jsoup.isValid(html, Safelist.none())
-                && Jsoup.parse(html).text().equals(html);
+        var cleaned = Jsoup.clean(html, Safelist.none());
+        return html.equals(Parser.unescapeEntities(cleaned, false));
     }
 
 }
