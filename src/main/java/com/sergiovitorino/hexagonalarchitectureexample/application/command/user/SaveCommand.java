@@ -1,6 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.command.user;
 
-import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validations.SafeHtml;
+import com.sergiovitorino.hexagonalarchitectureexample.application.validation.SafeHtml;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;

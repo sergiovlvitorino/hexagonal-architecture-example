@@ -2,14 +2,13 @@ package com.sergiovitorino.hexagonalarchitectureexample.application.service.test
 
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
-import com.sergiovitorino.hexagonalarchitectureexample.domain.repository.UserRepository;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.repository.UserRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 public class UserServiceTest {
 
     @Mock
-    private UserRepository repository;
+    private UserRepositoryPort repository;
 
     @InjectMocks
     private UserService service;
@@ -40,38 +40,35 @@ public class UserServiceTest {
         user2.setId(UUID.randomUUID());
         Page<User> expectedPage = new PageImpl<>(List.of(user1, user2));
 
-        when(repository.findAll(any(Example.class), any(Pageable.class))).thenReturn(expectedPage);
+        when(repository.findAll(isNull(), any(Pageable.class))).thenReturn(expectedPage);
 
-        var result = service.findAll(0, 10, "name", true, new User());
+        var result = service.findAll(0, 10, "name", true, null);
 
         assertEquals(expectedPage, result);
         assertEquals(2, result.getContent().size());
-        verify(repository).findAll(any(Example.class), any(Pageable.class));
+        verify(repository).findAll(isNull(), any(Pageable.class));
     }
 
-    @SuppressWarnings("unchecked")
     @Test
-    public void testFindAllWithFilterPassesUserAsExample() {
-        var filter = new User("John");
-        when(repository.findAll(any(Example.class), any(Pageable.class))).thenReturn(Page.empty());
+    public void testFindAllWithFilterPassesUserNameToRepository() {
+        when(repository.findAll(any(String.class), any(Pageable.class))).thenReturn(Page.empty());
 
-        service.findAll(0, 10, "name", true, filter);
+        service.findAll(0, 10, "name", true, "John");
 
-        ArgumentCaptor<Example<User>> exampleCaptor = ArgumentCaptor.forClass(Example.class);
-        verify(repository).findAll(exampleCaptor.capture(), any(Pageable.class));
+        ArgumentCaptor<String> userNameCaptor = ArgumentCaptor.forClass(String.class);
+        verify(repository).findAll(userNameCaptor.capture(), any(Pageable.class));
 
-        var capturedUser = exampleCaptor.getValue().getProbe();
-        assertEquals("John", capturedUser.getName());
+        assertEquals("John", userNameCaptor.getValue());
     }
 
     @Test
     public void testFindAllAscendingSorting() {
-        when(repository.findAll(any(Example.class), any(Pageable.class))).thenReturn(Page.empty());
+        when(repository.findAll(isNull(), any(Pageable.class))).thenReturn(Page.empty());
 
-        service.findAll(0, 10, "name", true, new User());
+        service.findAll(0, 10, "name", true, null);
 
         var pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findAll(any(Example.class), pageableCaptor.capture());
+        verify(repository).findAll(isNull(), pageableCaptor.capture());
 
         var sort = pageableCaptor.getValue().getSort();
         var order = sort.getOrderFor("name");
@@ -81,12 +78,12 @@ public class UserServiceTest {
 
     @Test
     public void testFindAllDescendingSorting() {
-        when(repository.findAll(any(Example.class), any(Pageable.class))).thenReturn(Page.empty());
+        when(repository.findAll(isNull(), any(Pageable.class))).thenReturn(Page.empty());
 
-        service.findAll(0, 10, "name", false, new User());
+        service.findAll(0, 10, "name", false, null);
 
         var pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findAll(any(Example.class), pageableCaptor.capture());
+        verify(repository).findAll(isNull(), pageableCaptor.capture());
 
         var sort = pageableCaptor.getValue().getSort();
         var order = sort.getOrderFor("name");

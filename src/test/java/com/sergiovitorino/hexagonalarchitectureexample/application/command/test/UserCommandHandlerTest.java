@@ -5,10 +5,10 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -21,38 +21,38 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 public class UserCommandHandlerTest {
 
+    private static final int MAX_PAGE_SIZE = 1000;
+
     @Mock
     private UserService service;
 
-    @InjectMocks
     private UserCommandHandler handler;
+
+    @BeforeEach
+    void setUp() {
+        handler = new UserCommandHandler(service, MAX_PAGE_SIZE);
+    }
 
     @Test
     public void testHandleListCommandDelegatesToService() {
-        var user = new User("Alice");
-        var command = new ListCommand(0, 10, "name", true, user);
+        var command = new ListCommand(0, 10, "name", true, "Alice");
 
-        when(service.findAll(0, 10, "name", true, user)).thenReturn(Page.empty());
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), anyString())).thenReturn(Page.empty());
 
         handler.handle(command);
 
-        verify(service).findAll(0, 10, "name", true, user);
+        verify(service).findAll(eq(0), eq(10), eq("name"), eq(true), eq("Alice"));
     }
 
     @Test
     public void testHandleListCommandWithNullUserCreatesEmptyUser() {
         var command = new ListCommand(0, 10, "name", true, null);
 
-        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), any(User.class))).thenReturn(Page.empty());
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), isNull())).thenReturn(Page.empty());
 
         handler.handle(command);
 
-        var userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(service).findAll(eq(0), eq(10), eq("name"), eq(true), userCaptor.capture());
-
-        var capturedUser = userCaptor.getValue();
-        assertNotNull(capturedUser);
-        assertNull(capturedUser.getName());
+        verify(service).findAll(eq(0), eq(10), eq("name"), eq(true), isNull());
     }
 
     @Test
@@ -67,12 +67,12 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithValidOrderByIdSucceeds() {
         var command = new ListCommand(0, 10, "id", true, null);
 
-        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), any(User.class))).thenReturn(Page.empty());
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), isNull())).thenReturn(Page.empty());
 
         var result = handler.handle(command);
 
         assertNotNull(result);
-        verify(service).findAll(eq(0), eq(10), eq("id"), eq(true), any(User.class));
+        verify(service).findAll(eq(0), eq(10), eq("id"), eq(true), isNull());
     }
 
     @Test
@@ -88,5 +88,45 @@ public class UserCommandHandlerTest {
         verify(service).save(userCaptor.capture());
 
         assertEquals("TestName", userCaptor.getValue().getName());
+    }
+
+    @Test
+    public void testHandleListCommandWithNegativePageNumberThrowsException() {
+        var command = new ListCommand(-1, 10, "name", true, null);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        assertEquals("pageNumber must be >= 0", exception.getMessage());
+    }
+
+    @Test
+    public void testHandleListCommandWithZeroPageSizeThrowsException() {
+        var command = new ListCommand(0, 0, "name", true, null);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        assertEquals("pageSize must be between 1 and " + MAX_PAGE_SIZE, exception.getMessage());
+    }
+
+    @Test
+    public void testHandleListCommandWithPageSizeExceedingLimitThrowsException() {
+        var command = new ListCommand(0, MAX_PAGE_SIZE + 1, "name", true, null);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        assertEquals("pageSize must be between 1 and " + MAX_PAGE_SIZE, exception.getMessage());
+    }
+
+    @Test
+    public void testHandleListCommandWithBlankOrderByThrowsException() {
+        var command = new ListCommand(0, 10, "  ", true, null);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        assertEquals("orderBy must not be blank", exception.getMessage());
+    }
+
+    @Test
+    public void testHandleListCommandWithNullAscThrowsException() {
+        var command = new ListCommand(0, 10, "name", null, null);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        assertEquals("asc must not be null", exception.getMessage());
     }
 }

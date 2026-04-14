@@ -1,6 +1,6 @@
-package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.test;
+package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.test;
 
-import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.GlobalExceptionHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;

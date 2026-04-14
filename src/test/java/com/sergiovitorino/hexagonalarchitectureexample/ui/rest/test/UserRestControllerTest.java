@@ -1,203 +1,265 @@
 package com.sergiovitorino.hexagonalarchitectureexample.ui.rest.test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
-import org.json.JSONObject;
+import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.validation.SafeHtmlValidator;
+import com.sergiovitorino.hexagonalarchitectureexample.ui.rest.UserRestController;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.*;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@WebMvcTest(UserRestController.class)
+@Import({GlobalExceptionHandler.class, SafeHtmlValidator.class})
 public class UserRestControllerTest {
 
-    @Autowired private ObjectMapper mapper;
-    @Autowired private TestRestTemplate restTemplate;
-    @LocalServerPort private Integer port;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper mapper;
+
+    @MockitoBean
+    private UserCommandHandler commandHandler;
+
+    // Cria um User com id definido para simular retorno do repositório
+    private User createUser(String name) {
+        var user = new User(name);
+        user.setId(UUID.randomUUID());
+        return user;
+    }
 
     @Test
     public void testIfListCommandReturnsOk() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        final List<User> users = mapper.readValue(jsonObject.getString("content"), mapper.getTypeFactory().constructParametricType(List.class, User.class));
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        assertNotNull(users);
-        assertFalse(users.isEmpty());
+        var users = List.of(createUser("Alice"), createUser("Bob"));
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(new PageImpl<>(users));
+
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "100")
+                        .param("orderBy", "name")
+                        .param("asc", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isNotEmpty());
     }
 
     @Test
     public void testIfListCommandWithDescendingSortReturnsOk() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=false", HttpMethod.GET, entity, String.class);
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        final List<User> users = mapper.readValue(jsonObject.getString("content"), mapper.getTypeFactory().constructParametricType(List.class, User.class));
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        assertNotNull(users);
-        assertFalse(users.isEmpty());
+        var users = List.of(createUser("Bob"), createUser("Alice"));
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(new PageImpl<>(users));
+
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "100")
+                        .param("orderBy", "name")
+                        .param("asc", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isNotEmpty());
     }
 
     @Test
     public void testIfListCommandWithNonExistentFilterReturnsEmptyList() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=name&asc=true&user.name=111", HttpMethod.GET, entity, String.class);
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        final List<User> users = mapper.readValue(jsonObject.getString("content"), mapper.getTypeFactory().constructParametricType(List.class, User.class));
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        assertNotNull(users);
-        assertTrue(users.isEmpty());
-    }
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(Page.empty());
 
-    @Test
-    public void testIfSaveCommandIsOk() throws Exception {
-        final var command = new SaveCommand("My First Name");
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var entity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
-        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
-    }
-
-    @Test
-    public void testIfSaveCommandReturnsBadRequest() throws Exception {
-        final var command = new SaveCommand("<html>test</html>");
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
-
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        assertTrue(jsonObject.has("errors"));
-    }
-
-    @Test
-    public void testIfSaveCommandWithShortNameReturnsBadRequest() throws Exception {
-        final var command = new SaveCommand("ab");
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
-
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        assertTrue(jsonObject.has("errors"));
-    }
-
-    @Test
-    public void testIfSaveCommandWithImgTagReturnsBadRequest() throws Exception {
-        final var command = new SaveCommand("<img src=x onerror=alert(1)>");
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
-    }
-
-    @Test
-    public void testIfSaveCommandWithNullNameReturnsBadRequest() throws Exception {
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var httpEntity = new HttpEntity<>("{\"name\": null}", headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
-    }
-
-    @Test
-    public void testIfSaveCommandWithLongNameReturnsBadRequest() throws Exception {
-        final var command = new SaveCommand("A".repeat(101));
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var httpEntity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, httpEntity, String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "100")
+                        .param("orderBy", "name")
+                        .param("asc", "true")
+                        .param("userName", "111"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty());
     }
 
     @Test
     public void testIfPaginationWithPageNumberOneIsOk() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=2&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        assertEquals(2, jsonObject.getInt("size"));
-        assertTrue(jsonObject.getInt("totalPages") > 1);
+        // Retorna página com 2 itens de um total de 6, pageSize=2
+        var users = List.of(createUser("Alice"), createUser("Bob"));
+        var pageable = PageRequest.of(0, 2);
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(new PageImpl<>(users, pageable, 6L));
+
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "2")
+                        .param("orderBy", "name")
+                        .param("asc", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalPages").value(3));
     }
 
     @Test
     public void testIfListCommandWithInvalidOrderByReturnsBadRequest() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=10&orderBy=email&asc=true", HttpMethod.GET, entity, String.class);
-        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenThrow(new IllegalArgumentException("orderBy must be one of: [id, name]"));
 
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        assertTrue(jsonObject.has("error"));
-        assertTrue(jsonObject.getString("error").contains("orderBy must be one of"));
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "10")
+                        .param("orderBy", "email")
+                        .param("asc", "true"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("orderBy must be one of")));
     }
 
     @Test
     public void testIfListCommandWithOrderByIdReturnsOk() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=100&orderBy=id&asc=true", HttpMethod.GET, entity, String.class);
-        final var jsonObject = new JSONObject(responseEntity.getBody());
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        assertNotNull(jsonObject.getJSONArray("content"));
-    }
+        var users = List.of(createUser("Alice"), createUser("Bob"));
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(new PageImpl<>(users));
 
-    @Test
-    public void testIfSaveCommandWithExactMinLengthNameReturnsCreated() throws Exception {
-        final var command = new SaveCommand("Abcde");
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var entity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
-        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
-    }
-
-    @Test
-    public void testIfSaveCommandWithExactMaxLengthNameReturnsCreated() throws Exception {
-        final var command = new SaveCommand("A".repeat(100));
-
-        final var headers = new HttpHeaders();
-        headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-
-        final var entity = new HttpEntity<>(mapper.writeValueAsString(command), headers);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user", HttpMethod.POST, entity, String.class);
-        assertEquals(HttpStatus.CREATED, responseEntity.getStatusCode());
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "100")
+                        .param("orderBy", "id")
+                        .param("asc", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
     }
 
     @Test
     public void testPaginationMetadataIsCorrect() throws Exception {
-        final var entity = new HttpEntity<String>(null, null);
-        final var responseEntity = this.restTemplate.exchange("http://localhost:" + port + "/rest/user?pageNumber=0&pageSize=2&orderBy=name&asc=true", HttpMethod.GET, entity, String.class);
-        final var jsonObject = new JSONObject(responseEntity.getBody());
+        var users = List.of(createUser("Alice"), createUser("Bob"));
+        var pageable = PageRequest.of(0, 2);
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(new PageImpl<>(users, pageable, 8L));
 
-        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
-        assertEquals(0, jsonObject.getInt("number"));
-        assertEquals(2, jsonObject.getInt("size"));
-        assertTrue(jsonObject.getInt("totalPages") >= 3);
-        assertTrue(jsonObject.getInt("totalElements") >= 6);
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "2")
+                        .param("orderBy", "name")
+                        .param("asc", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalPages").value(4))
+                .andExpect(jsonPath("$.totalElements").value(8));
+    }
+
+    @Test
+    public void testIfSaveCommandIsOk() throws Exception {
+        var user = createUser("My First Name");
+        when(commandHandler.handle(any(SaveCommand.class)))
+                .thenReturn(user);
+
+        var body = mapper.writeValueAsString(new SaveCommand("My First Name"));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.name").value("My First Name"));
+    }
+
+    @Test
+    public void testIfSaveCommandReturnsBadRequest() throws Exception {
+        // Bean Validation rejeita antes de chegar ao commandHandler — não configura mock
+        var body = mapper.writeValueAsString(new SaveCommand("<html>test</html>"));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").exists());
+    }
+
+    @Test
+    public void testIfSaveCommandWithShortNameReturnsBadRequest() throws Exception {
+        var body = mapper.writeValueAsString(new SaveCommand("ab"));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").exists());
+    }
+
+    @Test
+    public void testIfSaveCommandWithImgTagReturnsBadRequest() throws Exception {
+        var body = mapper.writeValueAsString(new SaveCommand("<img src=x onerror=alert(1)>"));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void testIfSaveCommandWithNullNameReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": null}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void testIfSaveCommandWithLongNameReturnsBadRequest() throws Exception {
+        var body = mapper.writeValueAsString(new SaveCommand("A".repeat(101)));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors").exists());
+    }
+
+    @Test
+    public void testIfSaveCommandWithExactMinLengthNameReturnsCreated() throws Exception {
+        var user = createUser("Abcde");
+        when(commandHandler.handle(any(SaveCommand.class)))
+                .thenReturn(user);
+
+        var body = mapper.writeValueAsString(new SaveCommand("Abcde"));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Abcde"));
+    }
+
+    @Test
+    public void testIfSaveCommandWithExactMaxLengthNameReturnsCreated() throws Exception {
+        var name = "A".repeat(100);
+        var user = createUser(name);
+        when(commandHandler.handle(any(SaveCommand.class)))
+                .thenReturn(user);
+
+        var body = mapper.writeValueAsString(new SaveCommand(name));
+
+        mockMvc.perform(post("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value(name));
     }
 
 }

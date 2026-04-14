@@ -1,4 +1,4 @@
-package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validations;
+package com.sergiovitorino.hexagonalarchitectureexample.application.validation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;

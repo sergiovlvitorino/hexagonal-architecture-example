@@ -1,6 +1,6 @@
-package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validations.test;
+package com.sergiovitorino.hexagonalarchitectureexample.application.validation.test;
 
-import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.validations.SafeHtmlValidator;
+import com.sergiovitorino.hexagonalarchitectureexample.application.validation.SafeHtmlValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
