@@ -129,4 +129,41 @@ public class UserCommandHandlerTest {
         var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
         assertEquals("asc must not be null", exception.getMessage());
     }
+
+    @Test
+    public void testHandleListCommandWithMinPageSizeOneSucceeds() {
+        // pageSize=1 é o mínimo válido — boundary mutant: pageSize < 1 -> pageSize <= 1
+        var command = new ListCommand(0, 1, "name", true, null);
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), isNull())).thenReturn(Page.empty());
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        verify(service).findAll(eq(0), eq(1), eq("name"), eq(true), isNull());
+    }
+
+    @Test
+    public void testHandleListCommandWithMaxPageSizeSucceeds() {
+        // pageSize=maxPageSize é o máximo válido — boundary mutant: pageSize > max -> pageSize >= max
+        var command = new ListCommand(0, MAX_PAGE_SIZE, "name", true, null);
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), isNull())).thenReturn(Page.empty());
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        verify(service).findAll(eq(0), eq(MAX_PAGE_SIZE), eq("name"), eq(true), isNull());
+    }
+
+    @Test
+    public void testHandleSaveCommandReturnsNonNullUser() {
+        // Garante que o retorno do handle(SaveCommand) não é null — mata NullReturnValsMutator
+        var command = new SaveCommand("TestName");
+        var savedUser = new User("TestName");
+        when(service.save(any(User.class))).thenReturn(savedUser);
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        assertEquals("TestName", result.getName());
+    }
 }

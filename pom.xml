@@ -133,6 +133,61 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>1.17.3</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>1.2.1</version>
+                        <exclusions>
+                            <exclusion>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-launcher</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-engine</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-commons</artifactId>
+                            </exclusion>
+                        </exclusions>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <jvmArgs>
+                        <jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
+                        <jvmArg>--enable-native-access=ALL-UNNAMED</jvmArg>
+                    </jvmArgs>
+                    <targetClasses>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler</param>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.application.validation.SafeHtmlValidator</param>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService</param>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.infrastructure.persistence.UserRepositoryAdapter</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.*</param>
+                    </targetTests>
+                    <excludedTestClasses>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.infrastructure.test.ActuatorHealthTest</param>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.infrastructure.test.WebConfigCorsTest</param>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.test.UserGraphQLControllerTest</param>
+                        <param>com.sergiovitorino.hexagonalarchitectureexample.ui.rest.test.UserRestControllerTest</param>
+                    </excludedTestClasses>
+                    <outputFormats>
+                        <outputFormat>HTML</outputFormat>
+                        <outputFormat>XML</outputFormat>
+                    </outputFormats>
+                    <mutators>
+                        <mutator>DEFAULTS</mutator>
+                    </mutators>
+                    <timestampedReports>false</timestampedReports>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

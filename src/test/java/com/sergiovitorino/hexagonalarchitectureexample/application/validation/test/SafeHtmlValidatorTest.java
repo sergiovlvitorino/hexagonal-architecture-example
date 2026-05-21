@@ -61,4 +61,22 @@ public class SafeHtmlValidatorTest {
         assertFalse(validator.isValid("<div>content</div>", null));
     }
 
+    @Test
+    public void testWhitespaceOnlyIsInvalid() {
+        // Jsoup.clean() strip espaços — resultado "" != "   ", portanto o validador rejeita
+        assertFalse(validator.isValid("   ", null));
+    }
+
+    @Test
+    public void testUnicodeEscapedScriptTagIsInvalid() {
+        // "<script>" em entidades HTML — o unescapeEntities irá expandir para tag real
+        assertFalse(validator.isValid("&lt;script&gt;alert(1)&lt;/script&gt;", null));
+    }
+
+    @Test
+    public void testNestedEncodedEntitiesAreInvalid() {
+        // Entidades HTML aninhadas/misturadas com texto
+        assertFalse(validator.isValid("Hello &lt;b&gt;World&lt;/b&gt;", null));
+    }
+
 }

@@ -24,8 +24,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(UserRestController.class)
@@ -260,6 +259,47 @@ public class UserRestControllerTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value(name));
+    }
+
+    // --- Testes de segurança HTTP ---
+
+    @Test
+    public void testPutOnUserEndpointReturnsMethodNotAllowed() throws Exception {
+        mockMvc.perform(put("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    public void testDeleteOnUserEndpointReturnsMethodNotAllowed() throws Exception {
+        mockMvc.perform(delete("/rest/user"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    public void testPatchOnUserEndpointReturnsMethodNotAllowed() throws Exception {
+        mockMvc.perform(patch("/rest/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    public void testSqlInjectionInUserNameParamDoesNotCauseServerError() throws Exception {
+        // Injection attempt no parâmetro userName — deve retornar 200 (filtro tratado como string normal)
+        when(commandHandler.handle(any(ListCommand.class)))
+                .thenReturn(Page.empty());
+
+        mockMvc.perform(get("/rest/user")
+                        .param("pageNumber", "0")
+                        .param("pageSize", "10")
+                        .param("orderBy", "name")
+                        .param("asc", "true")
+                        .param("userName", "' OR 1=1--"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty());
     }
 
 }
