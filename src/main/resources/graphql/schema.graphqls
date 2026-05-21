@@ -1,6 +1,6 @@
 type Query {
     findAll(pageNumber: Int!, pageSize: Int!, orderBy: String!, asc: Boolean!, userName: String): UserPage!
-    findById(id: ID!): User
+    findById(id: ID!): User!
 }
 
 type Mutation {

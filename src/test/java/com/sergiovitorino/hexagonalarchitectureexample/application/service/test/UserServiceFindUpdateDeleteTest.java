@@ -76,7 +76,9 @@ public class UserServiceFindUpdateDeleteTest {
 
         service.delete(id);
 
-        verify(repository).deleteById(id);
+        var inOrder = inOrder(repository);
+        inOrder.verify(repository).findById(id);
+        inOrder.verify(repository).deleteById(id);
     }
 
     @Test

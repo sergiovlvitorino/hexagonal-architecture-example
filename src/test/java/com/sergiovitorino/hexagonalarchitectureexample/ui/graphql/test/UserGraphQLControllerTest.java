@@ -154,16 +154,16 @@ public class UserGraphQLControllerTest {
     }
 
     @Test
-    public void findById_nonExisting_returnsErrorWithNotFoundClassification() {
+    public void findById_nonExisting_returnsErrorsPopulatedAndDataNull() {
         var id = UUID.randomUUID();
         when(commandHandler.findById(id)).thenThrow(new UserNotFoundException(id));
 
-        graphQlTester.document("""
+        var result = graphQlTester.document("""
                     { findById(id: "%s") { id name } }
                 """.formatted(id))
-                .execute()
-                .errors()
-                .satisfy(errors -> assertThat(errors).isNotEmpty());
+                .execute();
+
+        result.errors().satisfy(errors -> assertThat(errors).isNotEmpty());
     }
 
     @Test

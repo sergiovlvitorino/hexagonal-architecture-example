@@ -2,6 +2,9 @@ package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception
 
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
@@ -12,10 +15,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class GlobalExceptionHandlerTest {
 
@@ -82,6 +89,30 @@ public class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
         assertTrue(response.getBody().get("error").contains("PUT"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void handleConstraintViolation_returns400WithErrors() {
+        var violation = mock(ConstraintViolation.class);
+        var path = mock(Path.class);
+        when(path.toString()).thenReturn("handle.command.name");
+        when(violation.getPropertyPath()).thenReturn(path);
+        when(violation.getMessage()).thenReturn("must not be blank");
+
+        Set<ConstraintViolation<?>> violations = new HashSet<>();
+        violations.add(violation);
+        var ex = new ConstraintViolationException("Constraint violation", violations);
+        var response = handler.handleConstraintViolation(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().containsKey("errors"));
+
+        var errors = (List<Map<String, String>>) response.getBody().get("errors");
+        assertEquals(1, errors.size());
+        assertEquals("handle.command.name", errors.get(0).get("field"));
+        assertEquals("must not be blank", errors.get(0).get("message"));
     }
 
     @Test

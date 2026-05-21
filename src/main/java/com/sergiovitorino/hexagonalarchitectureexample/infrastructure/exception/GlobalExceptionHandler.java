@@ -1,6 +1,7 @@
 package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception;
 
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,15 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
+        log.warn("Constraint violation: {}", ex.getMessage());
+        var errors = ex.getConstraintViolations().stream()
+                .map(v -> Map.of("field", v.getPropertyPath().toString(), "message", v.getMessage()))
+                .toList();
+        return ResponseEntity.badRequest().body(Map.of("errors", errors));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {

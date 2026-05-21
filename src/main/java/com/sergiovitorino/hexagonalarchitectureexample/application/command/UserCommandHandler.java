@@ -8,12 +8,15 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserS
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.validation.annotation.Validated;
 
+import jakarta.validation.Valid;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 @Component
+@Validated
 public class UserCommandHandler {
 
     private static final Set<String> ALLOWED_ORDER_FIELDS = Set.of("id", "name");
@@ -50,7 +53,7 @@ public class UserCommandHandler {
         return service.findById(id);
     }
 
-    public User handle(final UpdateCommand command) {
+    public User handle(@Valid final UpdateCommand command) {
         return service.update(command.id(), command.name());
     }
 
