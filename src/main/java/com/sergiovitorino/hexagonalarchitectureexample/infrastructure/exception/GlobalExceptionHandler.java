@@ -1,5 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception;
 
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,13 @@ public class GlobalExceptionHandler {
                 .map(e -> Map.of("field", e.getField(), "message", e.getDefaultMessage()))
                 .toList();
         return ResponseEntity.badRequest().body(Map.of("errors", errors));
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleUserNotFound(UserNotFoundException ex) {
+        log.warn("User not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

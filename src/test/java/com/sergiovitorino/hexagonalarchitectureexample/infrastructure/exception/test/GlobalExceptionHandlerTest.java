@@ -1,5 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.test;
 
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
@@ -81,6 +82,16 @@ public class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
         assertTrue(response.getBody().get("error").contains("PUT"));
+    }
+
+    @Test
+    public void handleUserNotFoundException_returns404WithMessage() {
+        var id = java.util.UUID.randomUUID();
+        var ex = new UserNotFoundException(id);
+        var response = handler.handleUserNotFound(ex);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("User not found: " + id, response.getBody().get("error"));
     }
 
 }

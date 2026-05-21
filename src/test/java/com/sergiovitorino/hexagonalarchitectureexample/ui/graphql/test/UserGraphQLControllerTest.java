@@ -1,7 +1,10 @@
 package com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.test;
 
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.DeleteCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.controller.UserGraphQLController;
 import org.junit.jupiter.api.Test;
@@ -133,6 +136,83 @@ public class UserGraphQLControllerTest {
                         totalElements
                     }}
                 """)
+                .execute()
+                .errors()
+                .satisfy(errors -> assertThat(errors).isNotEmpty());
+    }
+
+    @Test
+    public void findById_existing_returnsUserResponse() {
+        var user = createUser("Alice");
+        when(commandHandler.findById(user.getId())).thenReturn(user);
+
+        graphQlTester.document("""
+                    { findById(id: "%s") { id name } }
+                """.formatted(user.getId()))
+                .execute()
+                .path("findById.name").entity(String.class).isEqualTo("Alice");
+    }
+
+    @Test
+    public void findById_nonExisting_returnsErrorWithNotFoundClassification() {
+        var id = UUID.randomUUID();
+        when(commandHandler.findById(id)).thenThrow(new UserNotFoundException(id));
+
+        graphQlTester.document("""
+                    { findById(id: "%s") { id name } }
+                """.formatted(id))
+                .execute()
+                .errors()
+                .satisfy(errors -> assertThat(errors).isNotEmpty());
+    }
+
+    @Test
+    public void updateUser_existing_returnsUpdatedUser() {
+        var id = UUID.randomUUID();
+        var updated = new User(id, "UpdatedName");
+        when(commandHandler.handle(any(UpdateCommand.class))).thenReturn(updated);
+
+        graphQlTester.document("""
+                    mutation { updateUser(id: "%s", name: "UpdatedName") { id name } }
+                """.formatted(id))
+                .execute()
+                .path("updateUser.name").entity(String.class).isEqualTo("UpdatedName");
+    }
+
+    @Test
+    public void updateUser_nonExisting_returnsError() {
+        var id = UUID.randomUUID();
+        when(commandHandler.handle(any(UpdateCommand.class))).thenThrow(new UserNotFoundException(id));
+
+        graphQlTester.document("""
+                    mutation { updateUser(id: "%s", name: "NewName") { id name } }
+                """.formatted(id))
+                .execute()
+                .errors()
+                .satisfy(errors -> assertThat(errors).isNotEmpty());
+    }
+
+    @Test
+    public void deleteUser_existing_returnsTrue() {
+        var id = UUID.randomUUID();
+        // handle(DeleteCommand) é void — sem mock necessário
+
+        graphQlTester.document("""
+                    mutation { deleteUser(id: "%s") }
+                """.formatted(id))
+                .execute()
+                .path("deleteUser").entity(Boolean.class).isEqualTo(true);
+    }
+
+    @Test
+    public void deleteUser_nonExisting_returnsError() {
+        var id = UUID.randomUUID();
+        org.mockito.Mockito.doThrow(new UserNotFoundException(id))
+                .when(commandHandler).handle(any(DeleteCommand.class));
+
+        graphQlTester.document("""
+                    mutation { deleteUser(id: "%s") }
+                """.formatted(id))
                 .execute()
                 .errors()
                 .satisfy(errors -> assertThat(errors).isNotEmpty());

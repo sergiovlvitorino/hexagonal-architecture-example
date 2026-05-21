@@ -1,8 +1,10 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.command.test;
 
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.DeleteCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -165,5 +167,29 @@ public class UserCommandHandlerTest {
 
         assertNotNull(result);
         assertEquals("TestName", result.getName());
+    }
+
+    @Test
+    public void update_validCommand_delegatesToService() {
+        var id = java.util.UUID.randomUUID();
+        var command = new UpdateCommand(id, "NewName");
+        var updatedUser = new User(id, "NewName");
+        when(service.update(id, "NewName")).thenReturn(updatedUser);
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        assertEquals("NewName", result.getName());
+        verify(service).update(id, "NewName");
+    }
+
+    @Test
+    public void delete_validCommand_delegatesToService() {
+        var id = java.util.UUID.randomUUID();
+        var command = new DeleteCommand(id);
+
+        handler.handle(command);
+
+        verify(service).delete(id);
     }
 }

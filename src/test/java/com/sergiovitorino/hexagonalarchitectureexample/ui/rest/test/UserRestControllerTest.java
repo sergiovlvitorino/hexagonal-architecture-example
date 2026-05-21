@@ -2,8 +2,11 @@ package com.sergiovitorino.hexagonalarchitectureexample.ui.rest.test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.DeleteCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
 import com.sergiovitorino.hexagonalarchitectureexample.application.validation.SafeHtmlValidator;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -262,6 +266,109 @@ public class UserRestControllerTest {
     }
 
     // --- Testes de segurança HTTP ---
+
+    // --- findById ---
+
+    @Test
+    public void findById_existing_returns200WithUserResponse() throws Exception {
+        var user = createUser("Alice");
+        when(commandHandler.findById(user.getId())).thenReturn(user);
+
+        mockMvc.perform(get("/rest/user/" + user.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(user.getId().toString()))
+                .andExpect(jsonPath("$.name").value("Alice"));
+    }
+
+    @Test
+    public void findById_nonExisting_returns404() throws Exception {
+        var id = UUID.randomUUID();
+        when(commandHandler.findById(id)).thenThrow(new UserNotFoundException(id));
+
+        mockMvc.perform(get("/rest/user/" + id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("User not found: " + id));
+    }
+
+    @Test
+    public void findById_invalidUuid_returns400() throws Exception {
+        mockMvc.perform(get("/rest/user/not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // --- update ---
+
+    @Test
+    public void update_existing_returns200WithUpdatedUser() throws Exception {
+        var id = UUID.randomUUID();
+        var updated = new User(id, "NewName");
+        when(commandHandler.handle(any(UpdateCommand.class))).thenReturn(updated);
+
+        var body = mapper.writeValueAsString(new SaveCommand("NewName"));
+        mockMvc.perform(put("/rest/user/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("NewName"));
+    }
+
+    @Test
+    public void update_nonExisting_returns404() throws Exception {
+        var id = UUID.randomUUID();
+        when(commandHandler.handle(any(UpdateCommand.class))).thenThrow(new UserNotFoundException(id));
+
+        var body = mapper.writeValueAsString(new SaveCommand("NewName"));
+        mockMvc.perform(put("/rest/user/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void update_invalidName_returns400() throws Exception {
+        var id = UUID.randomUUID();
+        var body = mapper.writeValueAsString(new SaveCommand("ab"));
+
+        mockMvc.perform(put("/rest/user/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void update_invalidUuid_returns400() throws Exception {
+        var body = mapper.writeValueAsString(new SaveCommand("ValidName"));
+        mockMvc.perform(put("/rest/user/not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    // --- delete ---
+
+    @Test
+    public void delete_existing_returns204() throws Exception {
+        var id = UUID.randomUUID();
+        // handle(DeleteCommand) retorna void — sem mock necessário
+
+        mockMvc.perform(delete("/rest/user/" + id))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void delete_nonExisting_returns404() throws Exception {
+        var id = UUID.randomUUID();
+        doThrow(new UserNotFoundException(id)).when(commandHandler).handle(any(DeleteCommand.class));
+
+        mockMvc.perform(delete("/rest/user/" + id))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void delete_invalidUuid_returns400() throws Exception {
+        mockMvc.perform(delete("/rest/user/not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
 
     @Test
     public void testPutOnUserEndpointReturnsMethodNotAllowed() throws Exception {

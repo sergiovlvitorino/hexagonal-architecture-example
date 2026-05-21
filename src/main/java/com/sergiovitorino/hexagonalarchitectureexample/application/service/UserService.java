@@ -1,5 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.service;
 
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.repository.UserRepositoryPort;
 
@@ -10,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -31,9 +34,33 @@ public class UserService {
         return repository.findAll(userName, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public User findById(UUID id) {
+        log.debug("findById: id={}", id);
+        return repository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+    }
+
     @Transactional
     public User save(final User user) {
         log.debug("save: user={}", user.getName());
         return repository.save(user);
+    }
+
+    @Transactional
+    public User update(UUID id, String name) {
+        log.debug("update: id={}, name={}", id, name);
+        var user = repository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        user.setName(name);
+        return repository.save(user);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        log.debug("delete: id={}", id);
+        repository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        repository.deleteById(id);
     }
 }

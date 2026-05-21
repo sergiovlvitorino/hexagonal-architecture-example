@@ -1,13 +1,16 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.command;
 
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.DeleteCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,5 +44,17 @@ public class UserCommandHandler {
 
     public User handle(final SaveCommand command) {
         return service.save(new User(command.name()));
+    }
+
+    public User findById(UUID id) {
+        return service.findById(id);
+    }
+
+    public User handle(final UpdateCommand command) {
+        return service.update(command.id(), command.name());
+    }
+
+    public void handle(final DeleteCommand command) {
+        service.delete(command.id());
     }
 }
