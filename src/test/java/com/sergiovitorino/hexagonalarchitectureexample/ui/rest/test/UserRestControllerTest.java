@@ -6,6 +6,7 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
@@ -120,7 +121,7 @@ public class UserRestControllerTest {
     @Test
     public void testIfListCommandWithInvalidOrderByReturnsBadRequest() throws Exception {
         when(commandHandler.handle(any(ListCommand.class)))
-                .thenThrow(new IllegalArgumentException("orderBy must be one of: [id, name]"));
+                .thenThrow(new DomainValidationException("orderBy must be one of: [id, name]"));
 
         mockMvc.perform(get("/rest/user")
                         .param("pageNumber", "0")
@@ -129,7 +130,7 @@ public class UserRestControllerTest {
                         .param("asc", "true"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists())
-                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("orderBy must be one of")));
+                .andExpect(jsonPath("$.error").value("orderBy must be one of: [id, name]"));
     }
 
     @Test

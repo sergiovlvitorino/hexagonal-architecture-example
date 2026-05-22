@@ -1,0 +1,2 @@
+type Query { root: Node! }
+type Node { id: ID!, child: Node }

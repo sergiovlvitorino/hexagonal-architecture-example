@@ -43,7 +43,7 @@ public class UserService {
 
     @Transactional
     public User save(final User user) {
-        log.debug("save: user={}", user.getName());
+        log.debug("save: user.id={}", user.getId());
         return repository.save(user);
     }
 

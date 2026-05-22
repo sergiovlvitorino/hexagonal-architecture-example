@@ -6,6 +6,7 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithInvalidOrderByThrowsException() {
         var command = new ListCommand(0, 10, "email", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertTrue(exception.getMessage().contains("orderBy must be one of"));
     }
 
@@ -96,7 +97,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithNegativePageNumberThrowsException() {
         var command = new ListCommand(-1, 10, "name", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("pageNumber must be >= 0", exception.getMessage());
     }
 
@@ -104,7 +105,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithZeroPageSizeThrowsException() {
         var command = new ListCommand(0, 0, "name", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("pageSize must be between 1 and " + MAX_PAGE_SIZE, exception.getMessage());
     }
 
@@ -112,7 +113,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithPageSizeExceedingLimitThrowsException() {
         var command = new ListCommand(0, MAX_PAGE_SIZE + 1, "name", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("pageSize must be between 1 and " + MAX_PAGE_SIZE, exception.getMessage());
     }
 
@@ -120,7 +121,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithBlankOrderByThrowsException() {
         var command = new ListCommand(0, 10, "  ", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("orderBy must not be blank", exception.getMessage());
     }
 
@@ -128,7 +129,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithNullAscThrowsException() {
         var command = new ListCommand(0, 10, "name", null, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("asc must not be null", exception.getMessage());
     }
 

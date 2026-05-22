@@ -9,5 +9,5 @@ import java.util.UUID;
 
 public record UpdateCommand(
         @NotNull UUID id,
-        @NotBlank @SafeHtml @Size(min = 3, max = 100) String name
+        @NotBlank @SafeHtml @Size(min = 5, max = 100) String name
 ) {}

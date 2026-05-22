@@ -1,5 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception;
 
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -45,10 +46,16 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(DomainValidationException.class)
+    public ResponseEntity<Map<String, String>> handleDomainValidation(DomainValidationException ex) {
+        log.warn("Domain validation error: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        return ResponseEntity.badRequest().body(Map.of("error", "Invalid request"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

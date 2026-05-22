@@ -1,5 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.test;
 
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.exception.GlobalExceptionHandler;
 import jakarta.validation.ConstraintViolation;
@@ -29,11 +30,19 @@ public class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
+    public void handleDomainValidation_returnsOriginalMessage() {
+        var response = handler.handleDomainValidation(new DomainValidationException("orderBy must be one of: [id, name]"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("orderBy must be one of: [id, name]", response.getBody().get("error"));
+    }
+
+    @Test
     public void testHandleIllegalArgument() {
         var response = handler.handleIllegalArgument(new IllegalArgumentException("invalid value"));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("invalid value", response.getBody().get("error"));
+        assertEquals("Invalid request", response.getBody().get("error"));
     }
 
     @Test

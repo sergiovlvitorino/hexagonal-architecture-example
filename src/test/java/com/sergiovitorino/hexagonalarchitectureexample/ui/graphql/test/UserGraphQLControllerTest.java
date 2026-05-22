@@ -4,6 +4,7 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserC
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.DeleteCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.controller.UserGraphQLController;
@@ -80,7 +81,7 @@ public class UserGraphQLControllerTest {
     @Test
     public void testIfNegativePageNumberReturnsError() {
         when(commandHandler.handle(any(ListCommand.class)))
-                .thenThrow(new IllegalArgumentException("pageNumber must be >= 0"));
+                .thenThrow(new DomainValidationException("pageNumber must be >= 0"));
 
         graphQlTester.document("""
                     { findAll(pageNumber: -1, pageSize: 10, orderBy: "name", asc: true) {
@@ -96,7 +97,7 @@ public class UserGraphQLControllerTest {
     @Test
     public void testIfPageSizeExceedingLimitReturnsError() {
         when(commandHandler.handle(any(ListCommand.class)))
-                .thenThrow(new IllegalArgumentException("pageSize must be between 1 and 1000"));
+                .thenThrow(new DomainValidationException("pageSize must be between 1 and 1000"));
 
         graphQlTester.document("""
                     { findAll(pageNumber: 0, pageSize: 5000, orderBy: "name", asc: true) {
@@ -112,7 +113,7 @@ public class UserGraphQLControllerTest {
     @Test
     public void testIfPageSizeZeroReturnsError() {
         when(commandHandler.handle(any(ListCommand.class)))
-                .thenThrow(new IllegalArgumentException("pageSize must be between 1 and 1000"));
+                .thenThrow(new DomainValidationException("pageSize must be between 1 and 1000"));
 
         graphQlTester.document("""
                     { findAll(pageNumber: 0, pageSize: 0, orderBy: "name", asc: true) {
@@ -128,7 +129,7 @@ public class UserGraphQLControllerTest {
     @Test
     public void testIfInvalidOrderByReturnsError() {
         when(commandHandler.handle(any(ListCommand.class)))
-                .thenThrow(new IllegalArgumentException("orderBy must be one of: [id, name]"));
+                .thenThrow(new DomainValidationException("orderBy must be one of: [id, name]"));
 
         graphQlTester.document("""
                     { findAll(pageNumber: 0, pageSize: 10, orderBy: "email", asc: true) {
