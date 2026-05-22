@@ -46,10 +46,9 @@ jobs:
     # Non-blocking OWASP Dependency Check.
     # Requires the NVD_API_KEY repository secret to be reliable; without it,
     # the NVD API rate-limits with 403/404 and the plugin fails.
-    # TODO: once NVD_API_KEY is configured, remove `continue-on-error` on this job
-    # to make security findings block PR merges.
+    # TODO: once NVD_API_KEY is configured, remove `continue-on-error` on the
+    # OWASP step below to make security findings block PR merges.
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
     - uses: actions/checkout@v4
@@ -77,6 +76,7 @@ jobs:
         java-version: 21
 
     - name: OWASP Dependency Check
+      continue-on-error: true
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
       run: mvn org.owasp:dependency-check-maven:9.2.0:check -DskipTests -DfailBuildOnCVSS=8 -DnvdApiKey=$NVD_API_KEY
