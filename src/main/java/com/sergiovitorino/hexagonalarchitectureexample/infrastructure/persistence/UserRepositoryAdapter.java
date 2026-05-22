@@ -8,6 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+import java.util.UUID;
+
 @Component
 public class UserRepositoryAdapter implements UserRepositoryPort {
 
@@ -33,5 +36,15 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
         var entity = UserEntity.fromDomain(user);
         var saved = userRepository.save(entity);
         return saved.toDomain();
+    }
+
+    @Override
+    public Optional<User> findById(UUID id) {
+        return userRepository.findById(id).map(UserEntity::toDomain);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        userRepository.deleteById(id);
     }
 }

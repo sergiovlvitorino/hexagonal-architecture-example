@@ -1,5 +1,11 @@
 type Query {
     findAll(pageNumber: Int!, pageSize: Int!, orderBy: String!, asc: Boolean!, userName: String): UserPage!
+    findById(id: ID!): User!
+}
+
+type Mutation {
+    updateUser(id: ID!, name: String!): User!
+    deleteUser(id: ID!): Boolean!
 }
 
 type UserPage {

@@ -57,6 +57,36 @@ Tests:
 
 Residual uncovered branches (4): null checks in `UserGraphQLController` for `pageNumber`, `pageSize`, `orderBy`, `asc` - unreachable via HTTP because the GraphQL schema declares these as non-null (`Int!`, `String!`, `Boolean!`).
 
+### CRUD Completion + OpenAPI
+
+Performed in May 2026. Implemented findById, update, and delete operations across REST and GraphQL, added OpenAPI docs, PIT mutation testing, and addressed code review feedback.
+
+CRUD operations added:
+- **findById**: `UserRepositoryPort.findById(UUID)`, `UserRepositoryAdapter` implementation, `UserService.findById` (`@Transactional(readOnly=true)`), `UserNotFoundException` in `domain/exception/`, `GET /rest/user/{id}` endpoint, `findById(id: ID!): User!` GraphQL query
+- **update**: `UpdateCommand` record (`@NotNull id`, `@NotBlank @SafeHtml @Size(min=3,max=100) name`), `UserService.update`, `PUT /rest/user/{id}`, `updateUser` GraphQL mutation
+- **delete**: `DeleteCommand` record (`@NotNull id`), `UserService.delete` (verifies existence before deleting), `DELETE /rest/user/{id}` returns 204, `deleteUser` GraphQL mutation returns `Boolean!`
+
+OpenAPI / Swagger:
+- `springdoc-openapi-starter-webmvc-ui` added to `pom.xml`
+- `GET /swagger-ui.html` and `GET /v3/api-docs` exposed
+- `@Operation`, `@ApiResponse`, `@Parameter` on `UserRestController` endpoints
+
+Validation and error handling:
+- `@Validated` on `UserCommandHandler` class + `@Valid` on `handle(UpdateCommand)` parameter enables Bean Validation for method-level arguments
+- `GlobalExceptionHandler` handles `ConstraintViolationException` returning 400 with field/message error list
+- `GlobalExceptionHandler` handles `UserNotFoundException` returning 404
+
+Mutation testing:
+- PIT (`pitest-maven` + `pitest-junit5-plugin`) added to `pom.xml`, mutation score **97%** (36/37 killed)
+
+Code review feedback (May 2026):
+- `UserServiceFindUpdateDeleteTest.delete` uses `inOrder(repository)` to assert `findById` called before `deleteById`
+- `findById(id: ID!): User!` declared non-null in schema (previously `User`, nullable)
+- `GlobalExceptionHandler.handleConstraintViolation` added with unit test
+- `@Validated` + `@Valid` wired on `UserCommandHandler.handle(UpdateCommand)`
+
+Test count: **119 tests** total. Mutation score: 97%.
+
 ### Technical Debt Cleanup
 
 Performed in April 2026. Addressed 11 technical debts and increased tests from 28 to 54 (now 77 after hexagonal refactoring and adapter/entity tests).
@@ -124,31 +154,34 @@ src/main/java/com/sergiovitorino/hexagonalarchitectureexample/
   Start.java                                     # @SpringBootApplication entry point
   domain/
     model/User.java                              # Pure POJO domain model, UUID id, String name, @EqualsAndHashCode(of = "id"), no JPA annotations
-    repository/UserRepositoryPort.java           # Output port interface (findAll, save) -- domain contract for persistence
+    exception/UserNotFoundException.java         # Domain exception thrown by findById/update/delete when user not found
+    repository/UserRepositoryPort.java           # Output port interface (findAll, save, findById, deleteById) -- domain contract for persistence
   application/
     command/
-      UserCommandHandler.java                    # Handles ListCommand and SaveCommand, validates all inputs, @Value maxPageSize via constructor
+      UserCommandHandler.java                    # @Validated, handles all commands; @Valid on handle(UpdateCommand). @Value maxPageSize via constructor
       user/
         ListCommand.java                         # Java Record with validation annotations, uses String userName (not entity)
-        SaveCommand.java                         # Java Record with @SafeHtml
+        SaveCommand.java                         # Java Record with @SafeHtml, @Size(min=5,max=100), @NotEmpty
+        UpdateCommand.java                       # Java Record: @NotNull id, @NotBlank @SafeHtml @Size(min=3,max=100) name
+        DeleteCommand.java                       # Java Record: @NotNull UUID id
     dto/
       UserResponse.java                          # Java Record DTO (UUID id, String name), decouples API from domain model
     validation/
       SafeHtml.java                              # Custom @SafeHtml constraint annotation
       SafeHtmlValidator.java                     # Jsoup XSS validator
     service/
-      UserService.java                           # findAll (paginated, sorted, filtered), save. Depends on UserRepositoryPort. @Transactional, @Slf4j
+      UserService.java                           # findAll, save, findById, update, delete. Depends on UserRepositoryPort. @Transactional, @Slf4j
   ui/
     rest/
-      UserRestController.java                    # @RestController, GET/POST /rest/user, CacheControl on GET, returns UserResponse
+      UserRestController.java                    # @RestController GET/POST /rest/user, GET/PUT/DELETE /rest/user/{id}, @Operation annotations, returns UserResponse
     graphql/
       controller/
-        UserGraphQLController.java               # @Controller, @QueryMapping findAll, pure delegator (no validation), returns UserResponse
+        UserGraphQLController.java               # @Controller, @QueryMapping findAll/findById, @MutationMapping updateUser/deleteUser, pure delegator
   infrastructure/
     config/
       WebConfig.java                             # CORS configuration (origins from @Value via constructor)
     exception/
-      GlobalExceptionHandler.java                # @RestControllerAdvice, @Slf4j, 6 exception handlers (incl. NoResourceFoundException)
+      GlobalExceptionHandler.java                # @RestControllerAdvice, @Slf4j, 8 exception handlers (incl. ConstraintViolationException, UserNotFoundException)
     seed/
       Initialize.java                            # Seeds 6 random users (@Profile("!prod"))
     persistence/

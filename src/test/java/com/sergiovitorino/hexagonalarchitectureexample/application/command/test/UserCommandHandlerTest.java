@@ -1,9 +1,12 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.command.test;
 
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.UserCommandHandler;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.DeleteCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +62,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithInvalidOrderByThrowsException() {
         var command = new ListCommand(0, 10, "email", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertTrue(exception.getMessage().contains("orderBy must be one of"));
     }
 
@@ -94,7 +97,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithNegativePageNumberThrowsException() {
         var command = new ListCommand(-1, 10, "name", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("pageNumber must be >= 0", exception.getMessage());
     }
 
@@ -102,7 +105,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithZeroPageSizeThrowsException() {
         var command = new ListCommand(0, 0, "name", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("pageSize must be between 1 and " + MAX_PAGE_SIZE, exception.getMessage());
     }
 
@@ -110,7 +113,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithPageSizeExceedingLimitThrowsException() {
         var command = new ListCommand(0, MAX_PAGE_SIZE + 1, "name", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("pageSize must be between 1 and " + MAX_PAGE_SIZE, exception.getMessage());
     }
 
@@ -118,7 +121,7 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithBlankOrderByThrowsException() {
         var command = new ListCommand(0, 10, "  ", true, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("orderBy must not be blank", exception.getMessage());
     }
 
@@ -126,7 +129,68 @@ public class UserCommandHandlerTest {
     public void testHandleListCommandWithNullAscThrowsException() {
         var command = new ListCommand(0, 10, "name", null, null);
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> handler.handle(command));
+        var exception = assertThrows(DomainValidationException.class, () -> handler.handle(command));
         assertEquals("asc must not be null", exception.getMessage());
+    }
+
+    @Test
+    public void testHandleListCommandWithMinPageSizeOneSucceeds() {
+        // pageSize=1 é o mínimo válido — boundary mutant: pageSize < 1 -> pageSize <= 1
+        var command = new ListCommand(0, 1, "name", true, null);
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), isNull())).thenReturn(Page.empty());
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        verify(service).findAll(eq(0), eq(1), eq("name"), eq(true), isNull());
+    }
+
+    @Test
+    public void testHandleListCommandWithMaxPageSizeSucceeds() {
+        // pageSize=maxPageSize é o máximo válido — boundary mutant: pageSize > max -> pageSize >= max
+        var command = new ListCommand(0, MAX_PAGE_SIZE, "name", true, null);
+        when(service.findAll(anyInt(), anyInt(), anyString(), anyBoolean(), isNull())).thenReturn(Page.empty());
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        verify(service).findAll(eq(0), eq(MAX_PAGE_SIZE), eq("name"), eq(true), isNull());
+    }
+
+    @Test
+    public void testHandleSaveCommandReturnsNonNullUser() {
+        // Garante que o retorno do handle(SaveCommand) não é null — mata NullReturnValsMutator
+        var command = new SaveCommand("TestName");
+        var savedUser = new User("TestName");
+        when(service.save(any(User.class))).thenReturn(savedUser);
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        assertEquals("TestName", result.getName());
+    }
+
+    @Test
+    public void update_validCommand_delegatesToService() {
+        var id = java.util.UUID.randomUUID();
+        var command = new UpdateCommand(id, "NewName");
+        var updatedUser = new User(id, "NewName");
+        when(service.update(id, "NewName")).thenReturn(updatedUser);
+
+        var result = handler.handle(command);
+
+        assertNotNull(result);
+        assertEquals("NewName", result.getName());
+        verify(service).update(id, "NewName");
+    }
+
+    @Test
+    public void delete_validCommand_delegatesToService() {
+        var id = java.util.UUID.randomUUID();
+        var command = new DeleteCommand(id);
+
+        handler.handle(command);
+
+        verify(service).delete(id);
     }
 }
