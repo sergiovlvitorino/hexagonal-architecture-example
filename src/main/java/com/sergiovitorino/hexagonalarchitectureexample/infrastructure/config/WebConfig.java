@@ -3,6 +3,7 @@ package com.sergiovitorino.hexagonalarchitectureexample.infrastructure.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
@@ -21,6 +22,17 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("Content-Type", "X-Correlation-Id")
                 .maxAge(3600);
+    }
+
+    /**
+     * Exposes the OpenAPI spec at /openapi/users.yaml so Swagger UI can load it as a static file.
+     * Springdoc is configured via springdoc.swagger-ui.url=/openapi/users.yaml to point Swagger UI
+     * at this resource instead of generating docs from annotations (see ADR-0006).
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/openapi/**")
+                .addResourceLocations("classpath:/openapi/");
     }
 
 }

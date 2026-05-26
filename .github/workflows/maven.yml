@@ -39,6 +39,19 @@ jobs:
         distribution: 'temurin'
         java-version: 21
 
+    - name: Contract tests
+      # Fail-fast: contract tests run isolated here BEFORE full build,
+      # producing a dedicated artifact. They re-run in 'Build and verify' as part of mvn verify.
+      run: mvn -B test -Dtest=UserRestContractTest --file pom.xml
+
+    - name: Upload contract test reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: contract-test-reports
+        path: target/surefire-reports/*UserRestContractTest*
+        if-no-files-found: warn
+
     - name: Build and verify with Maven
       run: mvn -B verify --file pom.xml
 

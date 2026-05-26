@@ -5,28 +5,28 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
-import com.sergiovitorino.hexagonalarchitectureexample.application.dto.UpdateUserRequest;
-import com.sergiovitorino.hexagonalarchitectureexample.application.dto.UserResponse;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
+import com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.api.UsersApi;
+import com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.dto.PagedUserResponse;
+import com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.dto.SaveUserRequest;
+import com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.dto.UpdateUserRequest;
+import com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.dto.UserResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Controller;
 
-import jakarta.validation.Valid;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-@RestController
-@RequestMapping("/rest/user")
-@Validated
-@Tag(name = "Users", description = "User management API")
-public class UserRestController {
+/**
+ * REST adapter implementing the OpenAPI-generated {@link UsersApi} interface.
+ * The OpenAPI spec at {@code src/main/resources/openapi/users.yaml} is the contract source-of-truth (SDD).
+ * Validation (Bean Validation) is applied to generated DTOs; defense-in-depth {@code @SafeHtml} runs in Commands.
+ */
+@Controller
+public class UserRestController implements UsersApi {
 
     private final UserCommandHandler commandHandler;
 
@@ -34,62 +34,60 @@ public class UserRestController {
         this.commandHandler = commandHandler;
     }
 
-    @GetMapping
-    @Operation(summary = "List users with pagination, sorting and optional name filter")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Users listed successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid parameters")
-    })
-    public ResponseEntity<Page<UserResponse>> get(@Valid ListCommand command) {
-        var page = commandHandler.handle(command).map(UserResponse::from);
+    @Override
+    public ResponseEntity<PagedUserResponse> listUsers(Integer pageNumber,
+                                                       Integer pageSize,
+                                                       String orderBy,
+                                                       Boolean asc,
+                                                       String userName) {
+        var command = new ListCommand(pageNumber, pageSize, orderBy, asc, userName);
+        var page = commandHandler.handle(command);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.SECONDS))
-                .body(page);
+                .body(toPagedUserResponse(page));
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Find user by ID")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "User found"),
-            @ApiResponse(responseCode = "400", description = "Invalid UUID format"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(UserResponse.from(commandHandler.findById(id)));
+    @Override
+    public ResponseEntity<UserResponse> findUserById(UUID id) {
+        return ResponseEntity.ok(toUserResponse(commandHandler.findById(id)));
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a new user")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "User created"),
-            @ApiResponse(responseCode = "400", description = "Validation error")
-    })
-    public UserResponse post(@RequestBody @Valid SaveCommand command) {
-        return UserResponse.from(commandHandler.handle(command));
+    @Override
+    public ResponseEntity<UserResponse> createUser(SaveUserRequest saveUserRequest) {
+        var saved = commandHandler.handle(new SaveCommand(saveUserRequest.getName()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toUserResponse(saved));
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Update an existing user")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "User updated"),
-            @ApiResponse(responseCode = "400", description = "Validation error or invalid UUID"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    public ResponseEntity<UserResponse> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserRequest body) {
-        var updated = commandHandler.handle(new UpdateCommand(id, body.name()));
-        return ResponseEntity.ok(UserResponse.from(updated));
+    @Override
+    public ResponseEntity<UserResponse> updateUser(UUID id, UpdateUserRequest updateUserRequest) {
+        var updated = commandHandler.handle(new UpdateCommand(id, updateUserRequest.getName()));
+        return ResponseEntity.ok(toUserResponse(updated));
     }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete a user by ID")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "User deleted"),
-            @ApiResponse(responseCode = "400", description = "Invalid UUID format"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    public void delete(@PathVariable UUID id) {
+    @Override
+    public ResponseEntity<Void> deleteUser(UUID id) {
         commandHandler.handle(new DeleteCommand(id));
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- mappers domain -> generated DTOs ---
+
+    private static UserResponse toUserResponse(User user) {
+        return new UserResponse(user.getId(), user.getName());
+    }
+
+    private static PagedUserResponse toPagedUserResponse(Page<User> page) {
+        var content = page.map(UserRestController::toUserResponse).getContent();
+        return new PagedUserResponse(
+                content,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast(),
+                page.isEmpty(),
+                page.getNumberOfElements()
+        );
     }
 }
