@@ -25,3 +25,10 @@ hs_err_pid*
 hexagonalarchitectureexample.iml
 .idea/*
 target/
+
+# AI tooling / local working artifacts
+.agents/
+.claude/
+roocline/
+TASKS.md
+claude-us06-completion.md

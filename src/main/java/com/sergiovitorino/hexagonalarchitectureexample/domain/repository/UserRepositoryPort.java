@@ -11,5 +11,6 @@ public interface UserRepositoryPort {
     Page<User> findAll(String userName, Pageable pageable);
     User save(User user);
     Optional<User> findById(UUID id);
+    boolean existsById(UUID id);
     void deleteById(UUID id);
 }

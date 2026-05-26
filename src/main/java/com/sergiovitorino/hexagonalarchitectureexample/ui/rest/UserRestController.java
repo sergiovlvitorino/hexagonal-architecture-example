@@ -5,6 +5,7 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.ListCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.SaveCommand;
 import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.UpdateCommand;
+import com.sergiovitorino.hexagonalarchitectureexample.application.dto.UpdateUserRequest;
 import com.sergiovitorino.hexagonalarchitectureexample.application.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -75,7 +76,7 @@ public class UserRestController {
             @ApiResponse(responseCode = "400", description = "Validation error or invalid UUID"),
             @ApiResponse(responseCode = "404", description = "User not found")
     })
-    public ResponseEntity<UserResponse> update(@PathVariable UUID id, @RequestBody @Valid SaveCommand body) {
+    public ResponseEntity<UserResponse> update(@PathVariable UUID id, @RequestBody @Valid UpdateUserRequest body) {
         var updated = commandHandler.handle(new UpdateCommand(id, body.name()));
         return ResponseEntity.ok(UserResponse.from(updated));
     }

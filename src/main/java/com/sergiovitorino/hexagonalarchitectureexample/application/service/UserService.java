@@ -1,9 +1,13 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.service;
 
+import com.sergiovitorino.hexagonalarchitectureexample.application.event.UserCreatedEvent;
+import com.sergiovitorino.hexagonalarchitectureexample.application.event.UserDeletedEvent;
+import com.sergiovitorino.hexagonalarchitectureexample.application.event.UserUpdatedEvent;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.repository.UserRepositoryPort;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -19,9 +23,11 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepositoryPort repository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public UserService(UserRepositoryPort repository) {
+    public UserService(UserRepositoryPort repository, ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -44,7 +50,9 @@ public class UserService {
     @Transactional
     public User save(final User user) {
         log.debug("save: user.id={}", user.getId());
-        return repository.save(user);
+        var saved = repository.save(user);
+        eventPublisher.publishEvent(new UserCreatedEvent(saved.getId()));
+        return saved;
     }
 
     @Transactional
@@ -53,14 +61,18 @@ public class UserService {
         var user = repository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setName(name);
-        return repository.save(user);
+        var updated = repository.save(user);
+        eventPublisher.publishEvent(new UserUpdatedEvent(id));
+        return updated;
     }
 
     @Transactional
     public void delete(UUID id) {
         log.debug("delete: id={}", id);
-        repository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
+        if (!repository.existsById(id)) {
+            throw new UserNotFoundException(id);
+        }
         repository.deleteById(id);
+        eventPublisher.publishEvent(new UserDeletedEvent(id));
     }
 }

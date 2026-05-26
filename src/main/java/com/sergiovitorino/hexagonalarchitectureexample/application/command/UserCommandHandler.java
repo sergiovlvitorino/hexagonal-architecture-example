@@ -46,7 +46,7 @@ public class UserCommandHandler {
         return service.findAll(command.pageNumber(), command.pageSize(), command.orderBy(), command.asc(), command.userName());
     }
 
-    public User handle(final SaveCommand command) {
+    public User handle(@Valid final SaveCommand command) {
         return service.save(new User(command.name()));
     }
 

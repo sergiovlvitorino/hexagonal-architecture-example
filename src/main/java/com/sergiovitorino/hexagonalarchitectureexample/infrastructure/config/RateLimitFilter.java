@@ -28,7 +28,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.trustProxy = properties.trustProxy();
         this.buckets = Caffeine.newBuilder()
                 .expireAfterAccess(Duration.ofMinutes(10))
-                .maximumSize(100_000)
+                .maximumSize(properties.cacheMaximumSize())
                 .build();
     }
 

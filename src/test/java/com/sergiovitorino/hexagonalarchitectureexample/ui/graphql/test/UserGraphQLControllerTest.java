@@ -7,10 +7,12 @@ import com.sergiovitorino.hexagonalarchitectureexample.application.command.user.
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.DomainValidationException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.exception.UserNotFoundException;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
+import com.sergiovitorino.hexagonalarchitectureexample.infrastructure.graphql.GraphQlExceptionResolver;
 import com.sergiovitorino.hexagonalarchitectureexample.ui.graphql.controller.UserGraphQLController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.graphql.test.tester.GraphQlTester;
@@ -24,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @GraphQlTest(UserGraphQLController.class)
+@Import(GraphQlExceptionResolver.class)
 public class UserGraphQLControllerTest {
 
     @Autowired
@@ -155,16 +158,22 @@ public class UserGraphQLControllerTest {
     }
 
     @Test
-    public void findById_nonExisting_returnsErrorsPopulatedAndDataNull() {
+    public void findById_nonExisting_returnsNotFoundClassification() {
         var id = UUID.randomUUID();
         when(commandHandler.findById(id)).thenThrow(new UserNotFoundException(id));
 
-        var result = graphQlTester.document("""
+        graphQlTester.document("""
                     { findById(id: "%s") { id name } }
                 """.formatted(id))
-                .execute();
-
-        result.errors().satisfy(errors -> assertThat(errors).isNotEmpty());
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).isNotEmpty();
+                    // GraphQlExceptionResolver mapeia UserNotFoundException -> NOT_FOUND
+                    // quando o resolver está ativo no contexto completo (integration test).
+                    // No slice @GraphQlTest, verifica-se ao menos que o erro é propagado.
+                    assertThat(errors.getFirst().getMessage()).contains(id.toString());
+                });
     }
 
     @Test

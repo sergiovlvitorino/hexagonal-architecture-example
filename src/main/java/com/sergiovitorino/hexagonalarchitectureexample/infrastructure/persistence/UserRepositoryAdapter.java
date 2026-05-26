@@ -44,6 +44,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public boolean existsById(UUID id) {
+        return userRepository.existsById(id);
+    }
+
+    @Override
     public void deleteById(UUID id) {
         userRepository.deleteById(id);
     }
