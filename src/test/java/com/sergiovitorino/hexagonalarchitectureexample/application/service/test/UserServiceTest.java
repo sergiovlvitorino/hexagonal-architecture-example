@@ -1,5 +1,6 @@
 package com.sergiovitorino.hexagonalarchitectureexample.application.service.test;
 
+import com.sergiovitorino.hexagonalarchitectureexample.application.event.UserCreatedEvent;
 import com.sergiovitorino.hexagonalarchitectureexample.application.service.UserService;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.model.User;
 import com.sergiovitorino.hexagonalarchitectureexample.domain.repository.UserRepositoryPort;
@@ -9,6 +10,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,9 @@ public class UserServiceTest {
 
     @Mock
     private UserRepositoryPort repository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private UserService service;
@@ -92,7 +97,7 @@ public class UserServiceTest {
     }
 
     @Test
-    public void testSaveDelegatesToRepository() {
+    public void testSaveDelegatesToRepositoryAndPublishesCreatedEvent() {
         var user = new User("TestUser");
         var savedUser = new User("TestUser");
         savedUser.setId(UUID.randomUUID());
@@ -104,5 +109,9 @@ public class UserServiceTest {
         assertEquals(savedUser, result);
         assertNotNull(result.getId());
         verify(repository).save(user);
+
+        ArgumentCaptor<UserCreatedEvent> eventCaptor = ArgumentCaptor.forClass(UserCreatedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals(savedUser.getId(), eventCaptor.getValue().id());
     }
 }

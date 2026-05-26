@@ -1,10 +1,13 @@
 type Query {
     findAll(pageNumber: Int!, pageSize: Int!, orderBy: String!, asc: Boolean!, userName: String): UserPage!
+    # ID! expects UUID string (e.g. "550e8400-e29b-41d4-a716-446655440000")
     findById(id: ID!): User!
 }
 
 type Mutation {
+    # ID! expects UUID string (e.g. "550e8400-e29b-41d4-a716-446655440000")
     updateUser(id: ID!, name: String!): User!
+    # ID! expects UUID string (e.g. "550e8400-e29b-41d4-a716-446655440000")
     deleteUser(id: ID!): Boolean!
 }
 

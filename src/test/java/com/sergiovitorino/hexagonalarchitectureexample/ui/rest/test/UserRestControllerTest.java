@@ -337,6 +337,16 @@ public class UserRestControllerTest {
     }
 
     @Test
+    public void update_fourCharName_returns400() throws Exception {
+        var id = UUID.randomUUID();
+
+        mockMvc.perform(put("/rest/user/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"abcd\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     public void update_invalidUuid_returns400() throws Exception {
         var body = mapper.writeValueAsString(new SaveCommand("ValidName"));
         mockMvc.perform(put("/rest/user/not-a-uuid")

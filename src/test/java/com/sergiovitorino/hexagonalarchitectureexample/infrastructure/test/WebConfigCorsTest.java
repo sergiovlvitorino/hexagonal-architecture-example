@@ -64,6 +64,26 @@ public class WebConfigCorsTest {
     }
 
     @Test
+    public void testPreflightRequest_correlationIdHeader_isAllowed() {
+        var headers = new HttpHeaders();
+        headers.add("Origin", "http://localhost:8080");
+        headers.add("Access-Control-Request-Method", "GET");
+        headers.add("Access-Control-Request-Headers", "X-Correlation-Id");
+
+        var entity = new HttpEntity<String>(null, headers);
+        var response = restTemplate.exchange(baseUrl(), HttpMethod.OPTIONS, entity, String.class);
+
+        assertTrue(
+            response.getStatusCode() == HttpStatus.OK || response.getStatusCode() == HttpStatus.NO_CONTENT,
+            "Preflight deve retornar 200 ou 204, recebeu: " + response.getStatusCode()
+        );
+        var allowedHeaders = response.getHeaders().getFirst("Access-Control-Allow-Headers");
+        assertNotNull(allowedHeaders, "Access-Control-Allow-Headers deve estar presente");
+        assertTrue(allowedHeaders.toLowerCase().contains("x-correlation-id"),
+                "X-Correlation-Id deve constar em Access-Control-Allow-Headers");
+    }
+
+    @Test
     public void testGetRequest_disallowedOrigin_noCorsHeader() {
         // Arrange: GET com origin nao permitida
         var headers = new HttpHeaders();

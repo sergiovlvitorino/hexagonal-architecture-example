@@ -40,7 +40,7 @@ Authentication was explicitly excluded (educational project). Fixes applied:
 
 ### Test Coverage Improvement
 
-Increased from 6 to 77 tests. Coverage: **98%+ instructions, 85%+ branches**. JaCoCo `check` goal enforces minimum 80% line coverage.
+Increased from 6 to 77 tests (later grown to 161 — see Post-Static-Analysis section). Coverage: **98%+ instructions, 85%+ branches**. JaCoCo `check` goal enforces minimum 80% line coverage.
 
 Tests:
 - **GraphQL** (7 slice -- `@GraphQlTest`): normal query, userName filter, negative pageNumber, pageSize exceeding limit, pageSize zero, invalid orderBy, orderBy by id
@@ -63,8 +63,8 @@ Performed in May 2026. Implemented findById, update, and delete operations acros
 
 CRUD operations added:
 - **findById**: `UserRepositoryPort.findById(UUID)`, `UserRepositoryAdapter` implementation, `UserService.findById` (`@Transactional(readOnly=true)`), `UserNotFoundException` in `domain/exception/`, `GET /rest/user/{id}` endpoint, `findById(id: ID!): User!` GraphQL query
-- **update**: `UpdateCommand` record (`@NotNull id`, `@NotBlank @SafeHtml @Size(min=3,max=100) name`), `UserService.update`, `PUT /rest/user/{id}`, `updateUser` GraphQL mutation
-- **delete**: `DeleteCommand` record (`@NotNull id`), `UserService.delete` (verifies existence before deleting), `DELETE /rest/user/{id}` returns 204, `deleteUser` GraphQL mutation returns `Boolean!`
+- **update**: `UpdateCommand` record (`@NotNull id`, `@NotBlank @SafeHtml @Size(min=5,max=100) name`), `UserService.update`, `PUT /rest/user/{id}`, `updateUser` GraphQL mutation
+- **delete**: `DeleteCommand` record (`@NotNull id`), `UserService.delete` (uses `existsById` before `deleteById` to avoid loading the entity), `DELETE /rest/user/{id}` returns 204, `deleteUser` GraphQL mutation returns `Boolean!`
 
 OpenAPI / Swagger:
 - `springdoc-openapi-starter-webmvc-ui` added to `pom.xml`
@@ -85,7 +85,23 @@ Code review feedback (May 2026):
 - `GlobalExceptionHandler.handleConstraintViolation` added with unit test
 - `@Validated` + `@Valid` wired on `UserCommandHandler.handle(UpdateCommand)`
 
-Test count: **119 tests** total. Mutation score: 97%.
+Test count: **161 tests** total. Mutation score: 97%.
+
+### Post-Static-Analysis Fixes (May 2026)
+
+Performed in May 2026. Addressed 13 tasks from static analysis.
+
+- **`UpdateCommand` min=5**: `@Size(min=5,max=100)` on name. `V1__init.sql` CHECK constraint updated to `>= 5`. `PUT /rest/user/{id}` now uses `UpdateUserRequest` DTO (not `SaveCommand`) for request body.
+- **GraphQL exception mapping**: `GraphQlExceptionResolver` (`infrastructure/graphql/`) extends `DataFetcherExceptionResolverAdapter`. Maps `UserNotFoundException` → `NOT_FOUND`, `DomainValidationException`/`IllegalArgumentException` → `BAD_REQUEST`, `ConstraintViolationException` → `BAD_REQUEST`. Covered by `GraphQlExceptionResolverIntegrationTest`.
+- **CORS X-Correlation-Id**: `WebConfig.allowedHeaders` includes `"X-Correlation-Id"`. Covered by new test in `WebConfigCorsTest`.
+- **MDC GraphQL TODO**: `GraphQlCorrelationInterceptor` has explicit TODO documenting that `doFirst`/`doFinally` run on the reactor thread; with virtual threads the data fetcher thread may not see MDC — solution is `ContextRegistry`/`ThreadLocalAccessor`.
+- **`UserService.delete` uses `existsById`**: Added `existsById(UUID)` to `UserRepositoryPort`, `UserRepositoryAdapter`, and `UserService.delete`. No longer loads the entity unnecessarily. Test updated with `inOrder(existsById, deleteById)`.
+- **`Initialize` readable names**: Seeds `"User-1-<6hex>"` through `"User-6-<6hex>"` (length >= 5, human-readable).
+- **`RateLimitProperties.cacheMaximumSize`**: New field (default 100000), used by `RateLimitFilter`. Property `ratelimit.cache-maximum-size` in `application.properties`.
+- **Dead code Relay removed**: Deleted `UserConnection`, `UserEdge`, `PageInfo` DTOs and `CursorCodec` + its test. Zero references remain.
+- **`bucket4j-core` bump**: 8.14.0 does not exist in Maven Central — kept at 8.10.1.
+- **`schema.graphqls` UUID comments**: `# ID! expects UUID string` comment added above `findById`, `updateUser`, `deleteUser`.
+- **`logback-spring.xml` scan removed**: Root `<configuration>` no longer has `scan="true"` — no dynamic reload in any profile (including prod).
 
 ### Technical Debt Cleanup
 
@@ -154,40 +170,61 @@ src/main/java/com/sergiovitorino/hexagonalarchitectureexample/
   Start.java                                     # @SpringBootApplication entry point
   domain/
     model/User.java                              # Pure POJO domain model, UUID id, String name, @EqualsAndHashCode(of = "id"), no JPA annotations
-    exception/UserNotFoundException.java         # Domain exception thrown by findById/update/delete when user not found
-    repository/UserRepositoryPort.java           # Output port interface (findAll, save, findById, deleteById) -- domain contract for persistence
+    exception/
+      UserNotFoundException.java                 # Thrown by findById/update/delete when user not found (mapped to 404 / NOT_FOUND)
+      DomainValidationException.java             # Domain validation error (mapped to 400 / BAD_REQUEST in REST and GraphQL)
+    repository/UserRepositoryPort.java           # Output port interface (findAll, save, findById, existsById, deleteById) -- domain contract for persistence
   application/
     command/
-      UserCommandHandler.java                    # @Validated, handles all commands; @Valid on handle(UpdateCommand). @Value maxPageSize via constructor
+      UserCommandHandler.java                    # @Validated, handles List/Save/Update/Delete commands; @Valid on handle(UpdateCommand). @Value maxPageSize via constructor
       user/
         ListCommand.java                         # Java Record with validation annotations, uses String userName (not entity)
         SaveCommand.java                         # Java Record with @SafeHtml, @Size(min=5,max=100), @NotEmpty
-        UpdateCommand.java                       # Java Record: @NotNull id, @NotBlank @SafeHtml @Size(min=3,max=100) name
+        UpdateCommand.java                       # Java Record: @NotNull id, @NotBlank @SafeHtml @Size(min=5,max=100) name
         DeleteCommand.java                       # Java Record: @NotNull UUID id
     dto/
       UserResponse.java                          # Java Record DTO (UUID id, String name), decouples API from domain model
+      UpdateUserRequest.java                     # Java Record DTO used as PUT /rest/user/{id} request body (name-only); REST controller builds UpdateCommand from path id + body. Keeps UpdateCommand internal and the REST contract explicit (separate from SaveCommand)
+    event/
+      UserCreatedEvent.java                      # Java Record published by UserService after save
+      UserUpdatedEvent.java                      # Java Record published by UserService after update
+      UserDeletedEvent.java                      # Java Record published by UserService after delete
     validation/
       SafeHtml.java                              # Custom @SafeHtml constraint annotation
       SafeHtmlValidator.java                     # Jsoup XSS validator
     service/
-      UserService.java                           # findAll, save, findById, update, delete. Depends on UserRepositoryPort. @Transactional, @Slf4j
+      UserService.java                           # findAll, save, findById, update, delete. Depends on UserRepositoryPort. Publishes UserCreated/Updated/DeletedEvent via ApplicationEventPublisher. @Transactional, @Slf4j
   ui/
     rest/
-      UserRestController.java                    # @RestController GET/POST /rest/user, GET/PUT/DELETE /rest/user/{id}, @Operation annotations, returns UserResponse
+      UserRestController.java                    # @RestController GET/POST /rest/user, GET/PUT/DELETE /rest/user/{id}; PUT consumes UpdateUserRequest; @Operation annotations; returns UserResponse
     graphql/
       controller/
         UserGraphQLController.java               # @Controller, @QueryMapping findAll/findById, @MutationMapping updateUser/deleteUser, pure delegator
   infrastructure/
     config/
-      WebConfig.java                             # CORS configuration (origins from @Value via constructor)
+      WebConfig.java                             # CORS configuration (origins via @Value); allowedHeaders includes X-Correlation-Id
+      GraphQLConfig.java                         # GraphQL runtime wiring (instrumentation, depth/complexity limits)
+      OpenApiConfig.java                         # springdoc OpenAPI metadata bean
+      RateLimitConfig.java                       # Builds bucket4j buckets backed by Caffeine cache (sized via RateLimitProperties)
+      RateLimitFilter.java                       # Servlet filter applying per-client rate limit using the configured cache
+      RateLimitProperties.java                   # @ConfigurationProperties("ratelimit"): capacity, refill, cacheMaximumSize (default 100000)
+      SecurityHeadersFilter.java                 # Adds HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP
     exception/
-      GlobalExceptionHandler.java                # @RestControllerAdvice, @Slf4j, 8 exception handlers (incl. ConstraintViolationException, UserNotFoundException)
+      GlobalExceptionHandler.java                # @RestControllerAdvice, @Slf4j, REST handlers (incl. ConstraintViolationException, UserNotFoundException, DomainValidationException)
+    graphql/
+      GraphQlExceptionResolver.java              # extends DataFetcherExceptionResolverAdapter; maps UserNotFoundException -> NOT_FOUND; DomainValidationException / IllegalArgumentException / ConstraintViolationException -> BAD_REQUEST
     seed/
-      Initialize.java                            # Seeds 6 random users (@Profile("!prod"))
+      Initialize.java                            # Seeds 6 readable users "User-N-<6hex>" (@Profile("!prod"))
+    observability/
+      UserMetrics.java                           # Micrometer Counters: users_created_total, users_updated_total, users_deleted_total
+      UserMetricsEventListener.java              # @TransactionalEventListener(AFTER_COMMIT) consuming application/event records, increments counters only after commit
+    web/
+      CorrelationIdFilter.java                   # OncePerRequestFilter, validates/propagates X-Correlation-Id header + MDC; static sanitize() reused by GraphQL interceptor
+      GraphQlCorrelationInterceptor.java         # WebGraphQlInterceptor, propagates correlation-id in GraphQL requests (TODO: virtual-thread MDC via ContextRegistry)
     persistence/
       UserEntity.java                            # JPA entity (@Table "users"), UUID id, @Column(length=100) name, @Index on name, toDomain()/fromDomain() mappers
       UserRepository.java                        # JpaRepository<UserEntity, UUID> interface
-      UserRepositoryAdapter.java                 # Implements UserRepositoryPort, encapsulates Example/ExampleMatcher, maps User<->UserEntity
+      UserRepositoryAdapter.java                 # Implements UserRepositoryPort (findAll, save, findById, existsById, deleteById), encapsulates Example/ExampleMatcher, maps User<->UserEntity
 ```
 
 ## Key Files
@@ -198,6 +235,10 @@ src/main/java/com/sergiovitorino/hexagonalarchitectureexample/
 - `src/main/java/.../domain/repository/UserRepositoryPort.java` - Output port interface (the hexagonal boundary)
 - `src/main/java/.../infrastructure/persistence/UserEntity.java` - JPA entity with `toDomain()`/`fromDomain()` mappers
 - `src/main/java/.../infrastructure/persistence/UserRepositoryAdapter.java` - Adapter implementing the output port
+- `src/main/java/.../infrastructure/graphql/GraphQlExceptionResolver.java` - GraphQL error mapping (NOT_FOUND / BAD_REQUEST classifications)
+- `src/main/java/.../infrastructure/config/RateLimitFilter.java` + `RateLimitProperties.java` - bucket4j-based rate limit, Caffeine cache sized by `ratelimit.cache-maximum-size`
+- `src/main/java/.../infrastructure/config/SecurityHeadersFilter.java` - HSTS / CSP / X-Frame-Options / X-Content-Type-Options / Referrer-Policy
+- `src/main/java/.../application/dto/UpdateUserRequest.java` - REST PUT request body for `/rest/user/{id}`
 - `.github/workflows/maven.yml` - CI pipeline (checkout@v4, setup-java@v5, temurin JDK 21)
 - `system.properties` - `java.runtime.version=21` (for Heroku-like deployments)
 
@@ -215,6 +256,81 @@ mvn test jacoco:report
 # Report at: target/site/jacoco/index.html
 ```
 
+### PostgreSQL + Flyway (US-06)
+
+Performed in May 2026. Added PostgreSQL support for production, Flyway schema management, and Testcontainers integration tests.
+
+Changes:
+- **`pom.xml`**: Added `org.postgresql:postgresql` (runtime), `org.flywaydb:flyway-core`, `org.flywaydb:flyway-database-postgresql`, `org.testcontainers:postgresql` (test), `org.testcontainers:junit-jupiter` (test), `org.springframework.boot:spring-boot-testcontainers` (test). Added Maven profile `it` with `maven-failsafe-plugin` to run ITs separately.
+- **`src/main/resources/db/migration/V1__init.sql`**: Creates `users` table (UUID PK, name VARCHAR(100) NOT NULL) and `idx_user_name` index. Flyway manages schema in prod.
+- **`src/main/resources/application-prod.properties`**: PostgreSQL datasource via env vars `${DB_URL}`, `${DB_USER}`, `${DB_PASSWORD}`; `ddl-auto=validate`; `flyway.enabled=true`.
+- **`src/main/resources/application.properties`** (dev): `spring.flyway.enabled=false` — H2 uses `ddl-auto=update`, Flyway not needed in dev.
+- **`src/test/resources/application-it.properties`**: `flyway.enabled=true`, `ddl-auto=validate` — used by Testcontainers IT.
+- **`UserRepositoryPostgresIT.java`**: `@SpringBootTest` + `@Testcontainers` + `@ServiceConnection`. Tests: save, findById, findById not found, findAll with filter, deleteById, deleteById not found, Flyway V1 applied (`flyway_schema_history`).
+
+Production environment variables required:
+- `DB_URL` — JDBC URL, e.g. `jdbc:postgresql://host:5432/dbname`
+- `DB_USER` — database username
+- `DB_PASSWORD` — database password
+
+Running integration tests (requires Docker):
+```bash
+mvn verify -Pit
+```
+
+## PostgreSQL + Flyway (US-06)
+
+Performed in May 2026. Added production-ready persistence with PostgreSQL and Flyway migrations, plus Testcontainers integration tests.
+
+Infrastructure changes:
+- **PostgreSQL driver**: `postgresql` dependency (runtime scope) added to `pom.xml`
+- **Flyway**: `flyway-core` + `flyway-database-postgresql` dependencies added. Migration `V1__init.sql` creates `users` table with `CONSTRAINT chk_name_min_length CHECK (length(name) >= 3)` and `idx_user_name` index
+- **application-prod.properties**: datasource reads from env vars `${DB_URL}`, `${DB_USER}`, `${DB_PASSWORD}`. Flyway configured with `validate-on-migrate=true` and `clean-disabled=true` (baseline-on-migrate NOT set — default false to prevent masking schema deviations). HikariCP `socketTimeout=30`, JPA `query.timeout=10000`
+
+Integration tests:
+- **`UserRepositoryPostgresIT`**: `@SpringBootTest` + `@Testcontainers` + `@ServiceConnection`. Uses `postgres:16-alpine` container. Annotated with `@Transactional` for test isolation. Profiles `{"it","prod"}` so `Initialize` seed is suppressed via `@Profile("!prod")`. Tests: Flyway migration applied, save, findById, findById not found, findAll with filter, deleteById, deleteById not found, findAll order descending, index `idx_user_name` exists
+- **Profile `it`**: `application-it.properties` overrides datasource placeholders so env vars are not required in test environment
+
+Running integration tests:
+```bash
+mvn verify -Pit
+```
+
+Environment variables required in production:
+- `DB_URL` — JDBC URL (e.g., `jdbc:postgresql://host:5432/dbname`)
+- `DB_USER` — database username
+- `DB_PASSWORD` — database password
+
+CI:
+- Job `integration-tests-postgres` in `.github/workflows/maven.yml` runs after `build` (`needs: build`). Uses `mvn verify -Pit -DskipTests`. GitHub Actions runners have Docker available for Testcontainers.
+
+## Observabilidade (US-07)
+
+Performed in May 2026. Added Prometheus metrics, structured JSON logs, and correlation-id propagation.
+
+Changes:
+- **`pom.xml`**: Added `io.micrometer:micrometer-registry-prometheus` (runtime) and `net.logstash.logback:logstash-logback-encoder:8.0`
+- **`application.properties`**: Exposes `prometheus` endpoint — `management.endpoints.web.exposure.include=health,info,prometheus`, `management.endpoint.prometheus.enabled=true`, `management.metrics.tags.application=hexagonal-architecture-example`
+- **`application-prod.properties`**: Same prometheus settings plus `management.server.port=9090` (internal port, not public 8080)
+- **`UserMetrics`** (`infrastructure/observability/`): Spring `@Component` with three Micrometer Counters: `users_created_total`, `users_updated_total`, `users_deleted_total`. Counters are incremented by `UserMetricsEventListener` after transaction commit.
+- **`UserMetricsEventListener`** (`infrastructure/observability/`): `@TransactionalEventListener(AFTER_COMMIT, fallbackExecution=true)` — listens for `UserCreatedEvent`, `UserUpdatedEvent`, `UserDeletedEvent` published by `UserService`. Counters only increment after successful commit, preventing inflation from rolled-back transactions.
+- **`application/event/`**: `UserCreatedEvent`, `UserUpdatedEvent`, `UserDeletedEvent` — plain Java records. `UserService` publishes via Spring's `ApplicationEventPublisher` (standard Spring API, not infrastructure-specific).
+- **`logback-spring.xml`**: Profile `!prod` (all non-prod profiles: dev, test, IT, default) — plain colorido console with `%X{correlationId}`. Profile `prod` — JSON via `LoggingEventCompositeJsonEncoder` with fields `@timestamp`, `level`, `logger`, `message`, `thread`, `mdc` (includes `correlationId`), `stack_trace`.
+- **`CorrelationIdFilter`** (`infrastructure/web/`): `OncePerRequestFilter` at `Ordered.HIGHEST_PRECEDENCE`. Validates `X-Correlation-Id` header against `Pattern "^[a-zA-Z0-9\\-]{1,64}$"` — rejects null/blank/> 64 chars/invalid chars and generates a new UUID (prevents log injection). Static `sanitize()` method reused by `GraphQlCorrelationInterceptor`.
+- **`GraphQlCorrelationInterceptor`** (`infrastructure/web/`): Implements `WebGraphQlInterceptor`. Delegates header validation to `CorrelationIdFilter.sanitize()`. Propagates correlation-id into MDC via `doFirst`/`doFinally` reactive hooks.
+
+Tests added:
+- `CorrelationIdFilterTest` (9 unit): header preserved, UUID generated when absent, MDC cleared after request, MDC cleared on chain exception, empty header generates UUID, MDC populated during chain, `\n` in header rejected, header > 64 chars rejected, chars outside `[a-zA-Z0-9-]` rejected
+- `UserMetricsEventListenerTest` (3 unit): onUserCreated increments created counter, onUserUpdated increments updated counter, onUserDeleted increments deleted counter
+- `ActuatorPrometheusIntegrationTest` (3 integration): 200 response, JVM metrics present, `users_total` counter after create
+
+Architecture notes:
+- `UserService` no longer imports `UserMetrics` — hexagonal boundary respected. The event-driven approach decouples application layer from infrastructure observability.
+- `UserMetrics` is called only from `UserMetricsEventListener` (infra→infra), zero application-layer dependency on Micrometer.
+- Micrometer 1.15.x + Prometheus client 1.x (OpenMetrics) exposes `users_created_total` as `users_total` (the client treats `_total` as a type suffix for the base name `users`).
+- MDC reactive propagation in GraphQL (`doFirst`/`doFinally`) has known limitations with virtual threads: the data fetcher runs on a different thread and may not see MDC set in the reactor hooks. Solution is `ContextRegistry` + `MdcThreadLocalAccessor` (micrometer-context-propagation). TODO documented in `GraphQlCorrelationInterceptor`.
+- Prometheus endpoint should NOT be exposed on the public internet without authentication. In production, `management.server.port=9090` isolates it on an internal port — or place behind a proxy with auth.
+
 ## Known Considerations
 
 - The `user` table is named `users` in `UserEntity` (`@Table(name = "users")`) because `user` is a reserved word in H2 2.x.
@@ -228,8 +344,13 @@ mvn test jacoco:report
 - `GET /rest/user` returns `Cache-Control: max-age=30`. Clients may see data up to 30 seconds stale. Adjust or remove if real-time data is needed.
 - `UserResponse` DTO is the API contract. New fields added to `User` domain model must be explicitly added to both `UserEntity` (persistence) and `UserResponse` (API) to be stored and exposed.
 - `@Column(length = 100)` on `UserEntity.name` is aligned with `@Size(max = 100)` on `SaveCommand`. If you change one, update the other.
-- Spring Boot Actuator exposes only `health` and `info` endpoints. Adding new endpoints requires updating `management.endpoints.web.exposure.include` in `application.properties`.
+- Spring Boot Actuator exposes `health`, `info`, and `prometheus` endpoints. Adding new endpoints requires updating `management.endpoints.web.exposure.include` in `application.properties`. In production, management runs on port 9090 (not 8080) to isolate metrics from public traffic.
 - `SafeHtml` and `SafeHtmlValidator` are in `application/validation/` (not in `infrastructure/`) so that `SaveCommand` (application layer) can use them without violating the hexagonal dependency direction (application must not depend on infrastructure).
+- **PUT `/rest/user/{id}` uses `UpdateUserRequest` (name-only) instead of `SaveCommand`**: keeps the REST request body explicit about what is mutable on update and avoids overloading the create command. The REST controller composes `UpdateCommand(pathId, body.name())` before delegating to `UserCommandHandler`. Validation on `UpdateCommand` (`@NotNull id`, `@NotBlank @SafeHtml @Size(min=5,max=100) name`) still runs at the handler boundary via `@Validated` + `@Valid`. Accepted DRY trade-off: a small body record duplicates one field but decouples the API contract from the command shape.
+- **`UserService.delete` uses `UserRepositoryPort.existsById(UUID)`** (not `findById`) to verify existence before issuing the `deleteById` call -- avoids loading and mapping the entity. Tests assert call order via `inOrder(existsById, deleteById)`.
+- **Validation reach**: `@Valid` is wired on `UserCommandHandler.handle(SaveCommand)` and `handle(UpdateCommand)`; combined with `@Validated` at class level, this enforces `SafeHtml`, `@Size`, `@NotBlank`, `@NotNull` for both REST and GraphQL entry points. Bean validation failures surface as `ConstraintViolationException` (handled in `GlobalExceptionHandler` -> 400 and in `GraphQlExceptionResolver` -> `BAD_REQUEST`).
+- **GraphQL error mapping is centralized in `infrastructure/graphql/GraphQlExceptionResolver`** (not in `GlobalExceptionHandler`, which is REST-only via `@RestControllerAdvice`). Adding a new domain exception requires updating both resolvers if it must be visible on both transports.
+- **Rate limit cache size is configurable** via `ratelimit.cache-maximum-size` (`RateLimitProperties.cacheMaximumSize`, default 100000). `bucket4j-core` is pinned at `8.10.1` -- newer versions referenced in earlier drafts (e.g. 8.14.0) are not published to Maven Central.
 
 ## Git Conventions
 

@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
-import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 @Component
 @Profile("!prod")
@@ -21,13 +21,9 @@ public class Initialize {
 
     @PostConstruct
     public void execute() {
-        repository.saveAll(List.of(
-                new UserEntity(UUID.randomUUID().toString()),
-                new UserEntity(UUID.randomUUID().toString()),
-                new UserEntity(UUID.randomUUID().toString()),
-                new UserEntity(UUID.randomUUID().toString()),
-                new UserEntity(UUID.randomUUID().toString()),
-                new UserEntity(UUID.randomUUID().toString())
-        ));
+        var users = IntStream.rangeClosed(1, 6)
+                .mapToObj(i -> new UserEntity("User-" + i + "-" + UUID.randomUUID().toString().substring(0, 6)))
+                .toList();
+        repository.saveAll(users);
     }
 }

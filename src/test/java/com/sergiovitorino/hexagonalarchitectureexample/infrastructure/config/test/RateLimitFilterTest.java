@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class RateLimitFilterTest {
 
     private RateLimitFilter newFilter(int capacity) {
-        return new RateLimitFilter(new RateLimitProperties(capacity, 1, false));
+        return new RateLimitFilter(new RateLimitProperties(capacity, 1, false, 100_000));
     }
 
     @Test
@@ -75,7 +75,7 @@ public class RateLimitFilterTest {
     @Test
     void trustProxy_withXff_usesFirstIpForRateLimiting() throws Exception {
         // With trustProxy=true and capacity=1, two requests from same XFF IP get rate-limited
-        var filter = new RateLimitFilter(new RateLimitProperties(1, 1, true));
+        var filter = new RateLimitFilter(new RateLimitProperties(1, 1, true, 100_000));
         var ip = "1.2.3.4";
 
         var req1 = new MockHttpServletRequest("GET", "/rest/user");
@@ -95,7 +95,7 @@ public class RateLimitFilterTest {
     @Test
     void withoutTrustProxy_xffIgnored_usesRemoteAddr() throws Exception {
         // Two requests with same XFF but different RemoteAddr should be treated as different IPs
-        var filter = new RateLimitFilter(new RateLimitProperties(1, 1, false));
+        var filter = new RateLimitFilter(new RateLimitProperties(1, 1, false, 100_000));
 
         var req1 = new MockHttpServletRequest("GET", "/rest/user");
         req1.addHeader("X-Forwarded-For", "1.2.3.4");
