@@ -17,10 +17,15 @@ public class OpenApiIntegrationTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    /**
+     * Verifies that the static OpenAPI spec is accessible at /openapi/users.yaml.
+     * springdoc api-docs generation is disabled (see ADR-0006); the spec file is served
+     * as a static resource and Swagger UI is configured to load it directly.
+     */
     @Test
-    public void apiDocs_returns200InDevProfile() {
+    public void openApiSpec_servedAsStaticResource() {
         var response = restTemplate.getForEntity(
-                "http://localhost:" + port + "/v3/api-docs", String.class);
+                "http://localhost:" + port + "/openapi/users.yaml", String.class);
         assertEquals(HttpStatus.OK, response.getStatusCode());
     }
 }

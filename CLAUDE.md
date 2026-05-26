@@ -331,6 +331,37 @@ Architecture notes:
 - MDC reactive propagation in GraphQL (`doFirst`/`doFinally`) has known limitations with virtual threads: the data fetcher runs on a different thread and may not see MDC set in the reactor hooks. Solution is `ContextRegistry` + `MdcThreadLocalAccessor` (micrometer-context-propagation). TODO documented in `GraphQlCorrelationInterceptor`.
 - Prometheus endpoint should NOT be exposed on the public internet without authentication. In production, `management.server.port=9090` isolates it on an internal port — or place behind a proxy with auth.
 
+## Spec-Driven Development (SDD) Migration
+
+Performed in May 2026. Adopted OpenAPI-first workflow for the REST layer: the spec at `src/main/resources/openapi/users.yaml` is the contract source-of-truth. Server interfaces and DTOs are generated at build time; contract tests fail the build when the implementation diverges from the spec.
+
+Changes:
+- **`pom.xml`**: Added `openapi-generator-maven-plugin` 7.10.0 bound to `generate-sources`. Configs: `interfaceOnly=true`, `useSpringBoot3=true`, `useJakartaEe=true`, `useTags=true`, `skipDefaultInterface=true`, `delegatePattern=false`, `openApiNullable=false`, `useBeanValidation=true`, `documentationProvider=none`, `annotationLibrary=none`. Output: `target/generated-sources/openapi`. Added `io.swagger.core.v3:swagger-annotations` (runtime/compile). Added `com.atlassian.oai:swagger-request-validator-mockmvc:2.40.0` (test scope). Added `<excludedClasses>com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.*</excludedClasses>` to the PIT plugin so generated code is not mutated.
+- **`src/main/resources/openapi/users.yaml`**: OpenAPI 3.0.3 spec describing the 5 endpoints (`GET /rest/user`, `GET /rest/user/{id}`, `POST /rest/user`, `PUT /rest/user/{id}`, `DELETE /rest/user/{id}`). Schemas: `UserResponse`, `SaveUserRequest`, `UpdateUserRequest`, `PagedUserResponse` (matches Spring `PageImpl` JSON shape to avoid breaking change), `ErrorResponse` (flexible: supports `{error: "..."}` and `{errors: [{field, message}]}` shapes used by `GlobalExceptionHandler`). Validation: `minLength: 5`, `maxLength: 100`, regex `^[^<>]*$` on write DTOs (approximates `@SafeHtml`); `format: uuid` for ids.
+- **Generated code** (in `target/generated-sources/openapi`): interface `com.sergiovitorino.hexagonalarchitectureexample.ui.rest.generated.api.UsersApi` and DTOs `SaveUserRequest`, `UpdateUserRequest`, `UserResponse`, `PagedUserResponse`, `ErrorResponse`, `ErrorResponseErrorsInner` in `...ui.rest.generated.dto`.
+- **`UserRestController` refactored**: now `implements UsersApi`. Methods `@Override` the generated interface signatures. DTO mapping `User` (domain) → `generated.UserResponse` and `Page<User>` → `generated.PagedUserResponse` is done in two private static helpers. Bean Validation runs on generated DTOs via `@Validated` on `UsersApi`. `@SafeHtml` remains on `SaveCommand`/`UpdateCommand` as defense-in-depth (server-side, decoupled from the wire contract).
+- **`application/dto/UpdateUserRequest.java` removed**: replaced by the generated `ui.rest.generated.dto.UpdateUserRequest`. `application/dto/UserResponse.java` is kept because the GraphQL controller still uses it (GraphQL is out of SDD scope).
+- **`UserRestContractTest`** (`src/test/java/.../ui/rest/test/`, 9 tests): `@WebMvcTest(UserRestController.class)` + `OpenApiValidationMatchers.openApi().isValid("openapi/users.yaml")`. Validates every response (200/201/204/400/404) against the spec for all 5 endpoints.
+
+Architecture notes:
+- **Hexagonal boundary preserved**: the controller bridges generated DTOs (wire format) and application Commands (`SaveCommand`, `UpdateCommand`, `DeleteCommand`, `ListCommand`). The application/domain layers have zero dependency on generated code.
+- **Defense-in-depth validation**: same constraints expressed twice — once in the spec (`pattern`, `minLength`, `maxLength`) and once in the Commands (`@SafeHtml`, `@Size`, `@NotBlank`). The Bean Validation on generated DTOs catches violations first; Commands re-validate at the application boundary so non-REST callers (GraphQL) are also protected.
+- **`UserResponse.name` has no `minLength`** in the spec — only `maxLength: 100`. Rationale: the contract for stored data must not propagate the write-side constraint `minLength: 5` because that would make the spec lie about data already persisted under different rules. `SaveUserRequest`/`UpdateUserRequest` enforce `minLength: 5` on write.
+- **PIT excludes** `ui.rest.generated.*` so mutation score is not diluted by code we don't own.
+
+How to regenerate sources:
+- `mvn generate-sources` (runs automatically before `compile`). To force a regeneration after editing `users.yaml`, run `mvn clean compile`.
+
+Versioning policy for `users.yaml`:
+- `info.version` follows SemVer. **Major bump** for breaking changes (field removed or renamed in response, response shape changed, endpoint removed, status code changed). **Minor bump** for non-breaking additions (new optional field, new endpoint). **Patch bump** for editorial corrections (description text, examples). When bumping major, also update the server URL if the API has a version path prefix.
+
+Test count: **171 tests** total (was 161 before SDD; +9 contract tests original, +1 `post_400_withHtmlPayload_matchesSpec`). All green. JaCoCo line coverage threshold (80%) passes.
+
+Accepted technical debt:
+- **`ErrorResponse` com `oneOf`**: o spec define `ErrorResponse` como `oneOf: [SingleError, ValidationErrors]`. O código gerado representa `ErrorResponse` como um objeto genérico (sem discriminador). A validação efetiva do shape é feita pelo contract test via jsonPath, não pelo tipo gerado.
+- **`pattern '^[^<>]*$'` em `SaveUserRequest`/`UpdateUserRequest` é uma aproximação fraca de `@SafeHtml`**: o pattern impede `<` e `>` literais mas não bloqueia entidades HTML codificadas (ex: `&lt;script&gt;`). A validação forte permanece via `@SafeHtml` no Command de aplicação (Jsoup + `Parser.unescapeEntities`), que decodifica entidades antes de verificar. O pattern no spec serve apenas como defense-in-depth na camada do cliente/spec; a proteção real é server-side.
+- **Contract test 400 com HTML usa mock em vez de payload real**: o teste `post_400_withHtmlPayload_matchesSpec` simula rejeição via `DomainValidationException` mockada em vez de enviar `<html>` real ao handler. Motivo: o `swagger-request-validator` rejeita o request antes de observar a response quando `pattern` é violado. Detalhes em ADR-0007.
+
 ## Known Considerations
 
 - The `user` table is named `users` in `UserEntity` (`@Table(name = "users")`) because `user` is a reserved word in H2 2.x.
@@ -349,6 +380,7 @@ Architecture notes:
 - **PUT `/rest/user/{id}` uses `UpdateUserRequest` (name-only) instead of `SaveCommand`**: keeps the REST request body explicit about what is mutable on update and avoids overloading the create command. The REST controller composes `UpdateCommand(pathId, body.name())` before delegating to `UserCommandHandler`. Validation on `UpdateCommand` (`@NotNull id`, `@NotBlank @SafeHtml @Size(min=5,max=100) name`) still runs at the handler boundary via `@Validated` + `@Valid`. Accepted DRY trade-off: a small body record duplicates one field but decouples the API contract from the command shape.
 - **`UserService.delete` uses `UserRepositoryPort.existsById(UUID)`** (not `findById`) to verify existence before issuing the `deleteById` call -- avoids loading and mapping the entity. Tests assert call order via `inOrder(existsById, deleteById)`.
 - **Validation reach**: `@Valid` is wired on `UserCommandHandler.handle(SaveCommand)` and `handle(UpdateCommand)`; combined with `@Validated` at class level, this enforces `SafeHtml`, `@Size`, `@NotBlank`, `@NotNull` for both REST and GraphQL entry points. Bean validation failures surface as `ConstraintViolationException` (handled in `GlobalExceptionHandler` -> 400 and in `GraphQlExceptionResolver` -> `BAD_REQUEST`).
+- **Dois tipos `UserResponse` em pacotes distintos, sem conflito**: `application.dto.UserResponse` (record Java mantido para o controller GraphQL) e `ui.rest.generated.dto.UserResponse` (gerado pelo `openapi-generator` para o controller REST). São tipos completamente distintos em pacotes diferentes; não há ambiguidade de compilação porque cada controller importa o seu. GraphQL não usa o tipo gerado (GraphQL está fora do escopo SDD). Ao adicionar um campo ao domínio `User`, é necessário atualizar `users.yaml` (REST), `application.dto.UserResponse` (GraphQL) e `UserEntity` (persistência) separadamente.
 - **GraphQL error mapping is centralized in `infrastructure/graphql/GraphQlExceptionResolver`** (not in `GlobalExceptionHandler`, which is REST-only via `@RestControllerAdvice`). Adding a new domain exception requires updating both resolvers if it must be visible on both transports.
 - **Rate limit cache size is configurable** via `ratelimit.cache-maximum-size` (`RateLimitProperties.cacheMaximumSize`, default 100000). `bucket4j-core` is pinned at `8.10.1` -- newer versions referenced in earlier drafts (e.g. 8.14.0) are not published to Maven Central.
 

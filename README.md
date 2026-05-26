@@ -78,7 +78,7 @@ Em producao:
 ### Testes
 
 ```bash
-mvn test                 # 161 testes unitarios + slice
+mvn test                 # 171 testes unitarios + slice
 mvn test jacoco:report   # relatorio em target/site/jacoco/index.html
 mvn verify -Pit          # testes de integracao com Testcontainers (requer Docker)
 mvn org.pitest:pitest-maven:mutationCoverage  # mutation testing
@@ -105,10 +105,27 @@ Queries: `findAll`, `findById`. Mutations: `saveUser`, `updateUser`, `deleteUser
 
 ### Documentacao e Operacao
 
-- `GET /swagger-ui.html` -- UI interativa OpenAPI.
-- `GET /v3/api-docs` -- especificacao OpenAPI em JSON.
+- `GET /swagger-ui.html` -- UI consumindo a spec estatica `users.yaml`.
+- `GET /openapi/users.yaml` -- spec autoral OpenAPI (source-of-truth).
 - `GET /actuator/health` -- health check.
 - `GET /actuator/prometheus` -- metricas (porta 9090 em prod).
+
+## Spec-Driven Development
+
+A camada REST segue o padrao **Spec-Driven Development (SDD)**: o contrato e autoral, versionado e revisavel independentemente do codigo.
+
+Suba a aplicacao (`mvn spring-boot:run`) e acesse `http://localhost:8080/swagger-ui.html` para navegar o contrato renderizado a partir de `users.yaml`.
+
+- **Source of truth**: [`src/main/resources/openapi/users.yaml`](src/main/resources/openapi/users.yaml). Toda mudanca no contrato começa aqui.
+- **Geracao automatica**: `openapi-generator-maven-plugin` gera interfaces de controller e DTOs em `ui.rest.generated` a cada `mvn clean compile`. O codigo gerado nao e comitado.
+- **Contract tests**: `UserRestContractTest` valida cada response real contra o YAML usando `swagger-request-validator-mockmvc` (ver [`docs/adr/0007-contract-tests-swagger-validator.md`](docs/adr/0007-contract-tests-swagger-validator.md)).
+- **Versionamento**: `info.version` em `users.yaml` segue SemVer — bump major em breaking changes (campo removido/renomeado, shape de response alterada), minor em adicoes nao-breaking, patch em correcoes editoriais. O bump deve ocorrer no MESMO PR que altera o contrato: major em breaking change, minor em adicoes compativeis, patch em correcoes editoriais (convencao de review — nao enforcada pelo CI).
+- **ADRs**: [`docs/adr/0006-openapi-first-rest.md`](docs/adr/0006-openapi-first-rest.md) e [`docs/adr/0007-contract-tests-swagger-validator.md`](docs/adr/0007-contract-tests-swagger-validator.md) documentam as decisoes de design.
+
+```bash
+# Regenerar interfaces e DTOs a partir do YAML
+mvn clean compile
+```
 
 ## Arquitetura
 
@@ -135,7 +152,7 @@ Detalhes completos (camadas, decisoes de design, historico de refatoracoes) em [
 
 ## Qualidade
 
-- **161 testes** (unitarios, slice `@WebMvcTest`/`@GraphQlTest`, integracao `@SpringBootTest` + Testcontainers).
+- **171 testes** (unitarios, slice `@WebMvcTest`/`@GraphQlTest`, integracao `@SpringBootTest` + Testcontainers).
 - **Cobertura JaCoCo**: acima de 98% instrucoes e 85% branches (gate de 80% no build).
 - **Mutation score (PIT)**: 97%.
 - **CI**: GitHub Actions com build, testes, cobertura, mutation testing e OWASP Dependency Check.

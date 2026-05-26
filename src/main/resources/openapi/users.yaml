@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: Users API
+  description: |
+    Hexagonal Architecture sample - Users REST API.
+    Spec-Driven Development source of truth: server interface and DTOs are generated from this file.
+  version: 1.0.0
+  contact:
+    name: Sergio Vitorino
+    email: sergiovlvitorino@gmail.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Users
+    description: User management API
+
+paths:
+  /rest/user:
+    get:
+      tags: [Users]
+      summary: List users with pagination, sorting and optional name filter
+      operationId: listUsers
+      parameters:
+        - name: pageNumber
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 1000
+            default: 20
+        - name: orderBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [id, name]
+            default: name
+        - name: asc
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: userName
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Users listed successfully
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Caching directive (max-age=30)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedUserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Users]
+      summary: Create a new user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rest/user/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Users]
+      summary: Find user by ID
+      operationId: findUserById
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Users]
+      summary: Update an existing user
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Users]
+      summary: Delete a user by ID
+      operationId: deleteUser
+      responses:
+        '204':
+          description: User deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  responses:
+    BadRequest:
+      description: Validation error or malformed request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    SingleError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    ValidationErrors:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    ErrorResponse:
+      oneOf:
+        - $ref: '#/components/schemas/SingleError'
+        - $ref: '#/components/schemas/ValidationErrors'
+      description: |
+        Two shapes: single-error `{ "error": "..." }` for 404/500 and domain errors,
+        or validation-errors `{ "errors": [{ "field": "...", "message": "..." }] }` for 400 Bean Validation failures.
+
+    UserResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+          description: |
+            User display name. Length constraint here is only the upper bound;
+            minLength is enforced on write (SaveUserRequest / UpdateUserRequest).
+
+    SaveUserRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 5
+          maxLength: 100
+          pattern: '^[^<>]*$'
+          description: User display name. HTML tags are rejected (defense-in-depth on the server via @SafeHtml).
+
+    UpdateUserRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 5
+          maxLength: 100
+          pattern: '^[^<>]*$'
+
+    PagedUserResponse:
+      type: object
+      description: |
+        Pagination envelope matching Spring Data PageImpl JSON shape.
+      required: [content, number, size, totalElements, totalPages, first, last, empty, numberOfElements]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        number:
+          type: integer
+          format: int32
+          description: Current page index (0-based)
+        size:
+          type: integer
+          format: int32
+          description: Page size
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+
